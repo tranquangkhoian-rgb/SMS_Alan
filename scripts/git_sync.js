@@ -42,11 +42,42 @@ async function runGitSync() {
   console.log('🌐 Remote URL:', remoteUrl);
   console.log('========================================================\n');
 
-  // 1. Init if needed
+  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || process.env.GIT_TOKEN;
+  if (!token) {
+    console.log('\n⚠️ No GitHub Personal Access Token (GITHUB_TOKEN) detected in environment.');
+    return { needsAuth: true, remoteUrl };
+  }
+
+  // 1. Init
   await git.init({ fs, dir: repoDir });
   console.log('✅ Git repository initialized.');
 
-  // 2. Stage files
+  // 2. Set Remote
+  await git.setConfig({
+    fs,
+    dir: repoDir,
+    path: 'remote.origin.url',
+    value: remoteUrl
+  });
+
+  // 3. Fetch remote objects so we have existing remote history
+  console.log('🔄 Fetching remote repository history from GitHub...');
+  try {
+    await git.fetch({
+      fs,
+      http,
+      dir: repoDir,
+      url: remoteUrl,
+      remote: 'origin',
+      ref: 'main',
+      onAuth: () => ({ username: token, password: '' })
+    });
+    console.log('✅ Remote history fetched successfully.');
+  } catch (fetchErr) {
+    console.log('ℹ️ Fetch note:', fetchErr.message);
+  }
+
+  // 4. Stage files
   const files = getAllFiles(repoDir);
   console.log(`📁 Staging ${files.length} files...`);
 
@@ -55,7 +86,7 @@ async function runGitSync() {
   }
   console.log('✅ All project files staged.');
 
-  // 3. Commit
+  // 5. Commit
   const author = {
     name: 'Trần Quang Khôi An',
     email: 'khoian.alan@vinschool.edu.vn'
@@ -73,14 +104,12 @@ async function runGitSync() {
     console.log('ℹ️ Commit status:', err.message);
   }
 
-  // 4. Ensure branch is 'main'
+  // Ensure branch is main
   const branches = await git.listBranches({ fs, dir: repoDir });
   if (!branches.includes('main')) {
     await git.branch({ fs, dir: repoDir, ref: 'main' });
-    console.log('✅ Created branch main.');
   }
 
-  // Set HEAD to main
   await git.writeRef({
     fs,
     dir: repoDir,
@@ -89,26 +118,9 @@ async function runGitSync() {
     force: true,
     symbolic: true
   });
-  console.log('✅ Checked out branch main.');
 
-  // 5. Set Remote
-  await git.setConfig({
-    fs,
-    dir: repoDir,
-    path: 'remote.origin.url',
-    value: remoteUrl
-  });
-  console.log('✅ Remote origin set to:', remoteUrl);
-
-  // 6. Push with token
-  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || process.env.GIT_TOKEN;
-
-  if (!token) {
-    console.log('\n⚠️ No GitHub Personal Access Token (GITHUB_TOKEN) detected in environment.');
-    return { needsAuth: true, remoteUrl };
-  }
-
-  console.log('🚀 Pushing branch main to GitHub repository...');
+  // 6. Push to GitHub
+  console.log('🚀 Pushing to GitHub repository (main)...');
   const pushResult = await git.push({
     fs,
     http,
@@ -127,7 +139,7 @@ async function runGitSync() {
 runGitSync()
   .then((res) => {
     if (res && res.success) {
-      console.log('\n🌟 PUSH COMPLETED SUCCESSFULLY!');
+      console.log('\n🌟 PUSH COMPLETED SUCCESSFULLY TO GITHUB!');
     }
   })
   .catch((err) => {
