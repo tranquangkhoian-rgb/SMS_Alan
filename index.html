@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SMS - Self Management System | Behavioral OS</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div>
+        <div class="brand-header">
+          <span>SMS - Self Management System</span>
+          <span class="brand-badge">Behavioral OS</span>
+        </div>
+        <ul class="nav-menu">
+          <li class="nav-item active" data-tab="dashboard">
+            <span class="nav-icon">🏠</span> Dashboard
+          </li>
+          <li class="nav-item" data-tab="goals">
+            <span class="nav-icon">🚩</span> Goals
+          </li>
+          <li class="nav-item" data-tab="daily-loop">
+            <span class="nav-icon">🍜</span> Daily Loop
+          </li>
+          <li class="nav-item" data-tab="weekly">
+            <span class="nav-icon">🗓️</span> Weekly Review
+          </li>
+        </ul>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 24px;">
+        <button id="btn-load-day1" class="btn-secondary-sm" title="Reset to Day 1 (Phase 1)">
+          🌱 Reset to Day 1 (Default)
+        </button>
+        <button id="btn-reset-fresh" class="btn-secondary-sm" title="Start fresh from Step 1 Onboarding">
+          🔄 Reset to Onboarding
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="main-wrapper">
+      <!-- Top Utility Header with Beta Testing Controls -->
+      <header class="top-bar">
+        <div class="top-left-status">
+          <div id="top-streak-display" class="streak-pill">
+            🔥 Streak: 0 days
+          </div>
+          <div id="top-phase-indicator" style="font-size: 13px; font-weight: 700; color: #0369a1; background: #e0f2fe; padding: 4px 10px; border-radius: 999px;">
+            Day 1/90 | Phase 1: Priority & Discipline
+          </div>
+          <div id="backend-status-badge" class="status-offline">
+            🟡 Storage: Local
+          </div>
+        </div>
+
+        <!-- Beta Testing Toolset -->
+        <div class="top-right-actions">
+          <button id="btn-skip-day" class="btn-secondary-sm btn-beta-skip" title="Advance calendar by 1 day for beta testing">
+            ⏭️ Skip Day (+1 Day)
+          </button>
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;">
+            <span>Jump to Day:</span>
+            <input id="input-jump-day" type="number" min="1" max="90" value="1" style="width: 54px; padding: 4px; text-align: center; border: 1px solid #94a3b8; border-radius: 4px; font-weight: 700;" />
+            <button id="btn-jump-day" class="btn-secondary-sm" style="padding: 4px 8px;">Go</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- View Containers -->
+      <main class="content-area">
+
+        <!-- ================= VIEW 1: DASHBOARD ================= -->
+        <section id="view-dashboard" class="tab-view active">
+          <div class="canva-card">
+            <h2 class="section-title">4. Dashboard</h2>
+            
+            <div style="border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 20px;">
+              <h3 id="dash-program-banner" style="font-size: 20px; font-weight: 800; color: #0f172a;">
+                90-Day Program: Day 1/90 Phase 1 (Days 1-30): Priority & Discipline
+              </h3>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+              <p style="font-size: 18px; font-weight: 700; margin-bottom: 6px;">
+                Today's Main Task (Top-1): <span id="dash-top1-task" style="font-weight: 500;">Finish English homework and review 5 vocabulary words.</span>
+              </p>
+              <p style="font-size: 16px; color: #475569; font-weight: 600; margin-bottom: 20px;">
+                Focus Time: <span id="dash-focus-time">19:45 (20 mins)</span>
+              </p>
+              
+              <div style="display: flex; gap: 16px;">
+                <button id="dash-btn-plan" class="btn-canva">Plan</button>
+                <button id="dash-btn-start-focus" class="btn-canva btn-canva-primary">Start Focus</button>
+              </div>
+            </div>
+
+            <!-- Scoreboard Recap -->
+            <div class="scoreboard-box">
+              <span>Scoreboard (5 Skills):</span>
+              <span class="score-tag">Priority: <strong id="score-p" class="score-val-0">0/1</strong></span> |
+              <span class="score-tag">Discipline: <strong id="score-d" class="score-val-0">0/1</strong></span> |
+              <span class="score-tag">Habit: <strong id="score-h" class="score-val-0">0/1</strong></span> |
+              <span class="score-tag">Grit (Reset): <strong id="score-g" class="score-val-0">0/1</strong></span> |
+              <span class="score-tag">Self-learning: <strong id="score-s" class="score-val-0">0/1</strong></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= VIEW 2: GOALS / ONBOARDING ================= -->
+        <section id="view-goals" class="tab-view" style="display: none;">
+          <!-- Step 1/3: Set up Goals -->
+          <div id="onboarding-step-1" class="canva-card">
+            <h2 class="section-title">1. Onboarding (Step 1/3) - Set up Goals</h2>
+            
+            <div class="form-group">
+              <label class="form-label">90-day goal:</label>
+              <textarea id="goal-input-statement" class="form-textarea">Students learn repeatly every day and upgraded their English's score form 9 to 9.5 and talk more confidently.</textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Subject:</label>
+                <input id="goal-input-subject" class="form-input" type="text" value="English" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Right now:</label>
+                <input id="goal-input-baseline" class="form-input" type="text" value="9" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Goal:</label>
+                <input id="goal-input-target" class="form-input" type="text" value="9.5" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Why did you choose this goal?</label>
+              <textarea id="goal-input-motivation" class="form-textarea">Because I want to talk more confidently and showed excellent academic results for future exam that i about to get.</textarea>
+            </div>
+
+            <div class="btn-group-right">
+              <button id="btn-onboarding-next-1" class="btn-canva">Next</button>
+            </div>
+          </div>
+
+          <!-- Step 2/3: Time Allocation & Schedule Editing -->
+          <div id="onboarding-step-2" class="canva-card" style="display: none;">
+            <h2 class="section-title">2. Onboarding (Step 2/3) - Time Allocation</h2>
+            
+            <div class="form-group">
+              <label class="form-label">Daily Free Time</label>
+              <input id="time-input-freetime" class="form-input" style="max-width: 200px;" type="text" value="30 mins / day" />
+            </div>
+
+            <div class="form-row" style="margin-bottom: 16px;">
+              <div class="form-group">
+                <label class="form-label">Priority Focus Time Slot:</label>
+                <input id="time-input-slot" class="form-input" type="time" value="19:45" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Default Duration (mins):</label>
+                <input id="time-input-duration" class="form-input" type="number" min="5" max="120" value="20" />
+              </div>
+            </div>
+
+            <!-- Editable Schedule Preview -->
+            <div class="form-group" style="background: #f8fafc; padding: 16px; border: 1.5px dashed #94a3b8; border-radius: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label class="form-label" style="color: #0369a1; margin-bottom: 0;">Preview & Edit Lịch trình (Schedule):</label>
+                <button id="btn-onboarding-add-slot" type="button" class="btn-add-block">+ Add Time Slot</button>
+              </div>
+              <div id="onboarding-schedule-container" class="schedule-list">
+                <!-- Dynamically rendered schedule rows -->
+              </div>
+            </div>
+
+            <div class="btn-group-right">
+              <button id="btn-onboarding-back-2" class="btn-canva">Back</button>
+              <button id="btn-onboarding-next-2" class="btn-canva">Next</button>
+            </div>
+          </div>
+
+          <!-- Step 3/3: Build a Habit -->
+          <div id="onboarding-step-3" class="canva-card" style="display: none;">
+            <h2 class="section-title">3. Onboarding (Step 3/3) - Build a Habit</h2>
+            
+            <div class="form-group">
+              <label class="form-label">1. Habit cue:</label>
+              <input id="habit-input-cue" class="form-input" type="text" value="After school..." />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">2. Minute Routine (Routine: 2 min):</label>
+              <input id="habit-input-routine" class="form-input" type="text" value="Sit at my desk and learn 5 new English words." />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">3. Immediate Reward :</label>
+              <input id="habit-input-reward" class="form-input" type="text" value="Stick a sticker and listen to my favorite song." />
+            </div>
+
+            <div class="btn-group-right">
+              <button id="btn-onboarding-back-3" class="btn-canva">Back</button>
+              <button id="btn-onboarding-finish-3" class="btn-canva btn-canva-primary">Finish</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= VIEW 3: DAILY LOOP ================= -->
+        <section id="view-daily-loop" class="tab-view" style="display: none;">
+          <!-- Sub-stepper header -->
+          <div class="stepper-header">
+            <span id="step-btn-plan" class="stepper-item active">1. Plan</span>
+            <span id="step-btn-timer" class="stepper-item">2. Focus Timer</span>
+            <span id="step-btn-end" class="stepper-item">3. End day</span>
+          </div>
+
+          <!-- Daily Step 1: Plan -->
+          <div id="daily-step-plan-card" class="canva-card">
+            <h2 class="section-title">5. Daily - 1. Plan</h2>
+
+            <div class="form-group">
+              <label class="form-label">1. Top-1 + Timebox Objectives:</label>
+              <input id="daily-input-top1" class="form-input" type="text" value="Learn 5 new English words" />
+              <div class="form-row" style="margin-top: 10px;">
+                <div>
+                  <label class="form-label">Start at:</label>
+                  <input id="daily-input-start-time" class="form-input" type="time" value="19:50" />
+                </div>
+                <div>
+                  <label class="form-label">Duration (Minutes):</label>
+                  <input id="daily-input-duration" class="form-input" type="number" min="1" max="180" value="20" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 24px;">
+              <label class="form-label">2. If-Then</label>
+              <div class="form-row">
+                <div>
+                  <label class="form-label" style="font-weight: 600; color: #64748b;">IF:</label>
+                  <input id="daily-input-if" class="form-input" type="text" value="want to use phone" />
+                </div>
+                <div>
+                  <label class="form-label" style="font-weight: 600; color: #64748b;">THEN:</label>
+                  <input id="daily-input-then" class="form-input" type="text" value="Put phone out of reach" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 24px;">
+              <label class="form-label">3. 2 Minutes Habit (Minimum)</label>
+              <div class="habit-routine-flow">
+                <span>Take A Bath</span>
+                <span class="habit-arrow">→</span>
+                <span>Learn 5 vocabulary words</span>
+                <span class="habit-arrow">→</span>
+                <span>Listen to Music</span>
+              </div>
+              <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+                <input id="check-min-habit" type="checkbox" style="width: 20px; height: 20px; cursor: pointer;" />
+                <label for="check-min-habit" style="font-weight: 700; cursor: pointer;">[ &nbsp; ] Have completed minimum habit</label>
+              </div>
+            </div>
+
+            <div class="btn-group-right">
+              <button id="btn-daily-start-focus" class="btn-canva btn-canva-primary">Start Focus</button>
+            </div>
+          </div>
+
+          <!-- Daily Step 2: Focus Timer (Editable) -->
+          <div id="daily-step-timer-card" class="canva-card" style="display: none;">
+            <h2 class="section-title">6. Daily - 2. Focus Timer</h2>
+
+            <p id="timer-meta-banner" style="font-weight: 700; font-size: 16px; margin-bottom: 12px;">
+              Completed English homework | Start: 19:45 | Goal: 20 min
+            </p>
+
+            <div class="timer-container">
+              <!-- Digital Timer Display -->
+              <div id="timer-display" class="timer-clock">20:00</div>
+
+              <!-- Main Timer Action Controls -->
+              <div class="timer-controls">
+                <button id="btn-timer-start-pause" class="btn-canva btn-canva-primary">Start</button>
+                <button id="btn-timer-reset" class="btn-canva">Reset</button>
+              </div>
+
+              <!-- Timer Edit Controls -->
+              <div class="timer-edit-panel">
+                <span style="font-size: 12px; font-weight: 700; color: #475569;">Edit Timer:</span>
+                <button id="btn-timer-quick-1m" class="btn-chip">1m</button>
+                <button id="btn-timer-quick-5m" class="btn-chip">5m</button>
+                <button id="btn-timer-quick-15m" class="btn-chip">15m</button>
+                <button id="btn-timer-quick-20m" class="btn-chip">20m</button>
+                <button id="btn-timer-quick-25m" class="btn-chip">25m</button>
+                <button id="btn-timer-sub-5m" class="btn-chip">-5m</button>
+                <button id="btn-timer-add-5m" class="btn-chip">+5m</button>
+                <div style="display: flex; align-items: center; gap: 4px; margin-left: 6px;">
+                  <input id="input-custom-mins" type="number" min="1" max="180" value="20" class="input-timer-mins" />
+                  <span style="font-size: 12px; font-weight: 600;">min</span>
+                  <button id="btn-set-custom-timer" class="btn-chip" style="background: #0f172a; color: #ffffff;">Set</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Done (Summary in 1 sentence):</label>
+              <input id="timer-input-summary" class="form-input" type="text" value="Have completed the lesson, learned 5 new words" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Next step :</label>
+              <input id="timer-input-nextstep" class="form-input" type="text" value="Next morning, practiced back these 5 words" />
+            </div>
+
+            <div class="btn-group-right">
+              <button id="btn-finish-focus" class="btn-canva btn-canva-primary">Finish Focus</button>
+            </div>
+          </div>
+
+          <!-- Daily Step 3: End Day -->
+          <div id="daily-step-end-card" class="canva-card" style="display: none;">
+            <h2 class="section-title">7. Daily - 3. End Day</h2>
+
+            <div id="end-scoreboard-recap" class="scoreboard-box" style="margin-top: 0; margin-bottom: 24px;">
+              Scoreboard Recap : Priority: 1/1 | Discipline: 1/1 | Habit: 1/1 | Grit (Reset): 0/1 | Self-learning: 0/1
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Reflection (3 prompts):</label>
+              <div style="margin-bottom: 10px;">
+                <label style="font-size: 14px; font-weight: 600; color: #475569;">1) Intended outcome:</label>
+                <input id="refl-input-intended" class="form-input" type="text" value="Master the grammar of present tense." />
+              </div>
+              <div style="margin-bottom: 10px;">
+                <label style="font-size: 14px; font-weight: 600; color: #475569;">2) What happened:</label>
+                <input id="refl-input-happened" class="form-input" type="text" value="Still a few mistakes when conjuncting singular verbs" />
+              </div>
+              <div style="margin-bottom: 10px;">
+                <label style="font-size: 14px; font-weight: 600; color: #475569;">3) One tweak for tomorrow:</label>
+                <input id="refl-input-tweak" class="form-input" type="text" value="Read the subject carefully before filling in the answer" />
+              </div>
+            </div>
+
+            <!-- 24h Safety Net Switch -->
+            <div style="border-top: 1px dashed #cbd5e1; padding-top: 20px; margin-top: 20px;">
+              <div class="switch-container">
+                <span style="font-weight: 800;">(Reset 24h):</span>
+                <button id="btn-safety-switch" class="switch-btn closed">[ SWITCH: CLOSED ]</button>
+                <span style="font-size: 13px; color: #64748b;">(Click to open safety net if you slipped today)</span>
+              </div>
+
+              <div id="safety-net-details" style="display: none; background: #fff1f2; border: 1.5px solid #fecdd3; padding: 16px; border-radius: 6px; margin-top: 10px;">
+                <div class="form-row">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="color: #9f1239;">Reason:</label>
+                    <input id="safety-input-reason" class="form-input" type="text" value="exhausted" />
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="color: #9f1239;">Action to fix mistake tomorrow:</label>
+                    <input id="safety-input-action" class="form-input" type="text" value="Only do homework for minimum for 2 mins" />
+                  </div>
+                </div>
+                <p style="font-size: 12px; color: #be123c; font-weight: 700; margin-top: 8px;">
+                  🛡️ NGU Rule: Your streak remains safe! Tomorrow starts at 2 minutes.
+                </p>
+              </div>
+            </div>
+
+            <p id="end-streak-status" style="font-weight: 800; font-size: 18px; margin-top: 24px;">
+              Streak: 0 days
+            </p>
+
+            <div class="btn-group-right">
+              <button id="btn-save-finish-day" class="btn-canva btn-canva-primary">Save & Finish</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= VIEW 4: WEEKLY REVIEW (Editable Schedule) ================= -->
+        <section id="view-weekly" class="tab-view" style="display: none;">
+          <div class="canva-card">
+            <h2 class="section-title">8. Weekly</h2>
+
+            <div style="margin-bottom: 24px;">
+              <h3 id="weekly-objective-header" style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 16px;">
+                90-DAY OBJECTIVE: Study regularly every day and improve your English score from 9.0 to 9.5.
+              </h3>
+
+              <div class="form-group">
+                <label class="form-label">1. Expected Outcomes (3 Key Results):</label>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <input id="weekly-kr-1" class="form-input" type="text" value="Complete 3 English listening tests. (Hoàn thành 3 bài kiểm tra nghe)." />
+                  <input id="weekly-kr-2" class="form-input" type="text" value="Master 3 advanced vocabulary words daily. (Làm chủ 3 từ vựng nâng cao mỗi ngày)." />
+                  <input id="weekly-kr-3" class="form-input" type="text" value="Practice speaking for 15 minutes every morning. (Luyện nói 15 phút mỗi sáng)." />
+                </div>
+              </div>
+
+              <!-- Editable Schedule Section -->
+              <div class="form-group" style="margin-top: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <label class="form-label" style="margin-bottom: 0;">2. Priority Focus Blocks (Editable Schedule):</label>
+                  <button id="btn-weekly-add-block" type="button" class="btn-add-block">+ Add Focus Block</button>
+                </div>
+                <div id="weekly-schedule-container" class="schedule-list">
+                  <!-- Dynamically rendered schedule rows with edit & delete -->
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-top: 20px;">
+                <label class="form-label">3. Deliberate Practice Focus:</label>
+                <textarea id="weekly-deliberate-focus" class="form-textarea">Pronunciation: Record my voice and compare it with native speakers to fix ending sounds.</textarea>
+              </div>
+            </div>
+
+            <div class="btn-group-right">
+              <button id="btn-finalize-weekly" class="btn-canva btn-canva-primary">Finalize Weekly Plan</button>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/models.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/apiClient.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
