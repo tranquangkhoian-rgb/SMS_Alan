@@ -52,7 +52,7 @@ async function runGitSync() {
   await git.init({ fs, dir: repoDir });
   console.log('✅ Git repository initialized.');
 
-  // 2. Set Remote
+  // 2. Configure Remote URL & Refspec
   await git.setConfig({
     fs,
     dir: repoDir,
@@ -60,16 +60,22 @@ async function runGitSync() {
     value: remoteUrl
   });
 
-  // 3. Fetch remote objects so we have existing remote history
+  await git.setConfig({
+    fs,
+    dir: repoDir,
+    path: 'remote.origin.fetch',
+    value: '+refs/heads/*:refs/remotes/origin/*'
+  });
+  console.log('✅ Remote origin & fetch refspec configured.');
+
+  // 3. Fetch remote objects
   console.log('🔄 Fetching remote repository history from GitHub...');
   try {
     await git.fetch({
       fs,
       http,
       dir: repoDir,
-      url: remoteUrl,
       remote: 'origin',
-      ref: 'main',
       onAuth: () => ({ username: token, password: '' })
     });
     console.log('✅ Remote history fetched successfully.');
