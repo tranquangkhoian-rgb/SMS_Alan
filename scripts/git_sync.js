@@ -43,8 +43,8 @@ async function runGitSync() {
   console.log('========================================================\n');
 
   // 1. Init if needed
-  await git.init({ fs, dir: repoDir, defaultBranch: 'main' });
-  console.log('✅ Git repository initialized on branch main.');
+  await git.init({ fs, dir: repoDir });
+  console.log('✅ Git repository initialized.');
 
   // 2. Stage files
   const files = getAllFiles(repoDir);
@@ -73,7 +73,25 @@ async function runGitSync() {
     console.log('ℹ️ Commit status:', err.message);
   }
 
-  // 4. Set Remote
+  // 4. Ensure branch is 'main'
+  const branches = await git.listBranches({ fs, dir: repoDir });
+  if (!branches.includes('main')) {
+    await git.branch({ fs, dir: repoDir, ref: 'main' });
+    console.log('✅ Created branch main.');
+  }
+
+  // Set HEAD to main
+  await git.writeRef({
+    fs,
+    dir: repoDir,
+    ref: 'HEAD',
+    value: 'refs/heads/main',
+    force: true,
+    symbolic: true
+  });
+  console.log('✅ Checked out branch main.');
+
+  // 5. Set Remote
   await git.setConfig({
     fs,
     dir: repoDir,
@@ -82,34 +100,34 @@ async function runGitSync() {
   });
   console.log('✅ Remote origin set to:', remoteUrl);
 
-  // 5. Check if token or credentials provided
+  // 6. Push with token
   const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || process.env.GIT_TOKEN;
 
   if (!token) {
     console.log('\n⚠️ No GitHub Personal Access Token (GITHUB_TOKEN) detected in environment.');
-    console.log('Pushing to GitHub requires authentication credentials.');
     return { needsAuth: true, remoteUrl };
   }
 
-  console.log('🚀 Pushing to GitHub repository...');
+  console.log('🚀 Pushing branch main to GitHub repository...');
   const pushResult = await git.push({
     fs,
     http,
     dir: repoDir,
     remote: 'origin',
     ref: 'main',
+    remoteRef: 'refs/heads/main',
     force: true,
     onAuth: () => ({ username: token, password: '' })
   });
 
-  console.log('🎉 Push Result:', pushResult);
+  console.log('🎉 Push Result:', JSON.stringify(pushResult, null, 2));
   return { success: true };
 }
 
 runGitSync()
   .then((res) => {
-    if (res && res.needsAuth) {
-      console.log('\n🔑 To complete the push, please provide your GitHub Personal Access Token.');
+    if (res && res.success) {
+      console.log('\n🌟 PUSH COMPLETED SUCCESSFULLY!');
     }
   })
   .catch((err) => {
