@@ -360,9 +360,18 @@ async function seedDay1() {
 }
 
 async function registerUser({ email, password, fullName, avatarUrl, description, abilities }) {
-  const existing = await get(`SELECT id FROM students WHERE email = ?`, [email]);
-  if (existing) {
-    throw new Error('Email already registered');
+  const name = (fullName || 'New Student').trim();
+  let normalizedEmail = email ? email.trim().toLowerCase() : '';
+
+  if (normalizedEmail) {
+    const existing = await get(`SELECT id FROM students WHERE LOWER(email) = LOWER(?)`, [normalizedEmail]);
+    if (existing) {
+      throw new Error('An account with this email already exists');
+    }
+  } else {
+    // Generate an internal identifier for SQLite unique constraint
+    const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'student';
+    normalizedEmail = `${cleanName}_${Date.now()}@sms.local`;
   }
 
   const studentId = 'student-' + Date.now();
@@ -372,7 +381,7 @@ async function registerUser({ email, password, fullName, avatarUrl, description,
   const loopId = 'loop-' + Date.now();
   const today = new Date().toISOString().slice(0, 10);
 
-  const defaultAbilities = abilities || [
+  const defaultAbilities = (abilities && abilities.length > 0) ? abilities : [
     { id: 'hax-1', name: '90-Second Activation Ritual', icon: '⚡', type: 'Discipline', description: 'Cuts starting resistance to under 90s before excuses kick in.', active: true },
     { id: 'hax-2', name: 'Phone Disruption Shield', icon: '🛡️', type: 'Focus', description: 'IF phone temptation occurs, THEN place in another room.', active: true },
     { id: 'hax-3', name: '24h Anti-Guilt Reset', icon: '🔄', type: 'Grit', description: 'Preserves active streak when exhausted by locking tomorrow to 2 minutes.', active: true },
@@ -384,7 +393,7 @@ async function registerUser({ email, password, fullName, avatarUrl, description,
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [
     studentId,
-    email,
+    normalizedEmail,
     password || '123456',
     fullName || 'New Student',
     avatarUrl || '🧑‍🎓',
@@ -488,10 +497,18 @@ async function registerUser({ email, password, fullName, avatarUrl, description,
   return await get(`SELECT id, email, full_name, avatar_url, description, abilities_hax_json, current_streak_days, streak_status FROM students WHERE id = ?`, [studentId]);
 }
 
-async function loginUser({ email, password }) {
-  const student = await get(`SELECT * FROM students WHERE email = ?`, [email]);
+async function loginUser({ identifier, email, username, password }) {
+  const query = (identifier || email || username || '').trim();
+  if (!query) {
+    throw new Error('Username or email is required');
+  }
+
+  const student = await get(
+    `SELECT * FROM students WHERE LOWER(email) = LOWER(?) OR LOWER(full_name) = LOWER(?) OR id = ? LIMIT 1`,
+    [query, query, query]
+  );
   if (!student) {
-    throw new Error('User with this email does not exist');
+    throw new Error('User with this username or email does not exist');
   }
   if (student.password && student.password !== password) {
     throw new Error('Incorrect password');

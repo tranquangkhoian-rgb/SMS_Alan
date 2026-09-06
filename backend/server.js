@@ -49,15 +49,16 @@ app.get('/api/health', (req, res) => {
 // Register / Create Account
 app.post('/api/v1/auth/register', async (req, res) => {
   try {
-    const { email, password, full_name, avatar_url, description, abilities } = req.body;
-    if (!email || !email.includes('@')) {
-      return errorResponse(res, 'Valid email is required', 400);
+    const { email, password, full_name, fullName, avatar_url, avatarUrl, description, abilities } = req.body;
+    const name = (fullName || full_name || '').trim();
+    if (!name && !email) {
+      return errorResponse(res, 'Full Name or Username is required', 400);
     }
     const student = await registerUser({
-      email,
+      email: email ? email.trim() : '',
       password: password || '123456',
-      fullName: full_name || 'New Student',
-      avatarUrl: avatar_url || '🧑‍🎓',
+      fullName: name || 'New Student',
+      avatarUrl: avatarUrl || avatar_url || '🧑‍🎓',
       description: description || 'Building daily self-management habits.',
       abilities
     });
@@ -68,20 +69,21 @@ app.post('/api/v1/auth/register', async (req, res) => {
       avatarUrl: student.avatar_url,
       description: student.description,
       abilitiesHax: JSON.parse(student.abilities_hax_json || '[]')
-    }, 'Account successfully created!', 201);
+    }, 'Account successfully created!', 200);
   } catch (err) {
     errorResponse(res, err.message, 400);
   }
 });
 
-// Login
+// Login (supports Username or Email)
 app.post('/api/v1/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email) {
-      return errorResponse(res, 'Email is required', 400);
+    const { email, username, identifier, password } = req.body;
+    const query = (identifier || email || username || '').trim();
+    if (!query) {
+      return errorResponse(res, 'Username or Email is required', 400);
     }
-    const student = await loginUser({ email, password });
+    const student = await loginUser({ identifier: query, password });
     successResponse(res, student, 'Login successful!');
   } catch (err) {
     errorResponse(res, err.message, 401);

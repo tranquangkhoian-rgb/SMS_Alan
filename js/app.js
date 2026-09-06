@@ -955,7 +955,18 @@ class AppController {
     if (dashName) dashName.textContent = student.fullName || (student.isGuest ? 'Guest User' : 'Student');
 
     const dashEmail = document.getElementById('dash-student-email');
-    if (dashEmail) dashEmail.textContent = student.email ? student.email : (student.isGuest ? 'Guest Mode (Local Storage)' : '');
+    if (dashEmail) {
+      if (student.email && !student.email.endsWith('@sms.local')) {
+        dashEmail.textContent = student.email;
+        dashEmail.style.display = 'inline-block';
+      } else if (student.isGuest) {
+        dashEmail.textContent = 'Guest Mode (Local Storage)';
+        dashEmail.style.display = 'inline-block';
+      } else {
+        dashEmail.textContent = `👤 Account: ${student.fullName || 'Active'}`;
+        dashEmail.style.display = 'inline-block';
+      }
+    }
 
     const dashDesc = document.getElementById('dash-student-desc');
     if (dashDesc) {
@@ -1161,7 +1172,13 @@ class AppController {
 
     const emailInput = document.getElementById('input-profile-email');
     if (emailInput) {
-      emailInput.value = student.email || (student.isGuest ? 'guest@local (Sign in to attach an account)' : '');
+      if (student.email && !student.email.endsWith('@sms.local')) {
+        emailInput.value = student.email;
+      } else if (student.isGuest) {
+        emailInput.value = 'Guest User (Local Storage)';
+      } else {
+        emailInput.value = '(No email attached - Local Account)';
+      }
     }
 
     const descInput = document.getElementById('textarea-profile-desc');
@@ -1515,13 +1532,13 @@ class AppController {
     const passInput = document.getElementById('input-login-password');
     const msgEl = document.getElementById('auth-login-msg');
 
-    const email = emailInput ? emailInput.value.trim() : '';
+    const identifier = emailInput ? emailInput.value.trim() : '';
     const password = passInput ? passInput.value.trim() : '';
 
-    if (!email) {
+    if (!identifier) {
       if (msgEl) {
         msgEl.style.color = '#dc2626';
-        msgEl.textContent = '❌ Please enter an email address.';
+        msgEl.textContent = '❌ Please enter your username or email address.';
       }
       return;
     }
@@ -1531,42 +1548,59 @@ class AppController {
       msgEl.textContent = '⏳ Logging in...';
     }
 
-    try {
-      if (window.smsApiClient) {
-        const res = await window.smsApiClient.login({ email, password });
-        if (res && res.data) {
-          const user = res.data;
-          this.state.student.id = user.id;
-          this.state.student.email = user.email;
-          this.state.student.fullName = user.fullName;
-          this.state.student.avatarUrl = user.avatarUrl || '🧑‍🎓';
-          this.state.student.description = user.description || '';
-          this.state.student.isGuest = false;
-          this.state.student.abilitiesHax = user.abilitiesHax || JSON.parse(JSON.stringify(window.SMS_MODELS.DEFAULT_ABILITIES_HAX));
-          this.state.student.currentStreakDays = user.streakDays || 0;
-          this.state.student.streakStatus = user.streakStatus || 'ACTIVE';
+    let serverUser = null;
 
-          window.smsStorage.saveState(this.state);
-          await this.syncWithBackend();
-          this.render();
-          this.closeAuthModal();
-          this.showToast(`👋 Welcome back, ${user.fullName}!`);
+    if (window.smsApiClient) {
+      try {
+        const res = await window.smsApiClient.login({ identifier, password });
+        if (res && res.data) {
+          serverUser = res.data;
+        }
+      } catch (err) {
+        const isNetworkErr = !err.message || 
+          err.message.includes('fetch') || 
+          err.message.includes('Network') || 
+          err.message.includes('Failed to fetch') ||
+          err.message.includes('connect');
+
+        if (!isNetworkErr) {
+          if (msgEl) {
+            msgEl.style.color = '#dc2626';
+            msgEl.textContent = `❌ ${err.message || 'Login failed'}`;
+          }
           return;
         }
+        console.warn('Backend server offline during login, using local account fallback:', err);
       }
-      // Offline fallback
-      this.state.student.email = email;
-      this.state.student.fullName = email.split('@')[0];
+    }
+
+    if (serverUser) {
+      this.state.student.id = serverUser.id;
+      this.state.student.email = serverUser.email || '';
+      this.state.student.fullName = serverUser.fullName || serverUser.full_name || identifier;
+      this.state.student.avatarUrl = serverUser.avatarUrl || serverUser.avatar_url || '🧑‍🎓';
+      this.state.student.description = serverUser.description || '';
+      this.state.student.isGuest = false;
+      this.state.student.abilitiesHax = serverUser.abilitiesHax || 
+        JSON.parse(serverUser.abilities_hax_json || '[]') || 
+        JSON.parse(JSON.stringify(window.SMS_MODELS.DEFAULT_ABILITIES_HAX));
+      this.state.student.currentStreakDays = serverUser.streakDays || 0;
+      this.state.student.streakStatus = serverUser.streakStatus || 'ACTIVE';
+
+      window.smsStorage.saveState(this.state);
+      await this.syncWithBackend();
+      this.render();
+      this.closeAuthModal();
+      this.showToast(`👋 Welcome back, ${this.state.student.fullName}!`);
+    } else {
+      // Local account login
+      this.state.student.email = identifier.includes('@') ? identifier : '';
+      this.state.student.fullName = identifier.includes('@') ? identifier.split('@')[0] : identifier;
       this.state.student.isGuest = false;
       window.smsStorage.saveState(this.state);
       this.render();
       this.closeAuthModal();
-      this.showToast(`👋 Signed in as ${this.state.student.fullName} (Local)`);
-    } catch (err) {
-      if (msgEl) {
-        msgEl.style.color = '#dc2626';
-        msgEl.textContent = `❌ ${err.message || 'Login failed'}`;
-      }
+      this.showToast(`👋 Signed in as ${this.state.student.fullName} (Local Account)`);
     }
   }
 
@@ -1584,10 +1618,19 @@ class AppController {
     const avatarUrl = (avatarInput && avatarInput.value.trim()) || '🧑‍🎓';
     const description = descInput ? descInput.value.trim() : '';
 
-    if (!fullName || !email || !password) {
+    // GMAIL / EMAIL IS NOW OPTIONAL! Only Full Name / Username is required.
+    if (!fullName) {
       if (msgEl) {
         msgEl.style.color = '#dc2626';
-        msgEl.textContent = '❌ Full name, email, and password are required.';
+        msgEl.textContent = '❌ Full name or username is required.';
+      }
+      return;
+    }
+
+    if (!password) {
+      if (msgEl) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = '❌ Password is required.';
       }
       return;
     }
@@ -1597,37 +1640,62 @@ class AppController {
       msgEl.textContent = '⏳ Creating account...';
     }
 
-    try {
-      if (window.smsApiClient) {
+    let serverUser = null;
+
+    if (window.smsApiClient) {
+      try {
         const res = await window.smsApiClient.register({
           fullName,
           email,
           password,
           avatarUrl,
           description,
-          abilities: JSON.parse(JSON.stringify(window.SMS_MODELS.DEFAULT_ABILITIES_HAX))
+          abilities: (this.state.student && this.state.student.abilitiesHax && this.state.student.abilitiesHax.length > 0)
+            ? this.state.student.abilitiesHax
+            : JSON.parse(JSON.stringify(window.SMS_MODELS.DEFAULT_ABILITIES_HAX))
         });
         if (res && res.data) {
-          const user = res.data;
-          this.state.student.id = user.id;
-          this.state.student.email = user.email;
-          this.state.student.fullName = user.full_name || user.fullName;
-          this.state.student.avatarUrl = user.avatar_url || user.avatarUrl || avatarUrl;
-          this.state.student.description = user.description || description;
-          this.state.student.isGuest = false;
-          this.state.student.abilitiesHax = JSON.parse(user.abilities_hax_json || '[]') || JSON.parse(JSON.stringify(window.SMS_MODELS.DEFAULT_ABILITIES_HAX));
-          this.state.student.currentStreakDays = 0;
-          this.state.student.streakStatus = 'ACTIVE';
+          serverUser = res.data;
+        }
+      } catch (err) {
+        const isNetworkErr = !err.message || 
+          err.message.includes('fetch') || 
+          err.message.includes('Network') || 
+          err.message.includes('Failed to fetch') ||
+          err.message.includes('connect');
 
-          window.smsStorage.saveState(this.state);
-          await this.syncWithBackend();
-          this.render();
-          this.closeAuthModal();
-          this.showToast(`🎉 Account created! Welcome, ${this.state.student.fullName}.`);
+        if (!isNetworkErr) {
+          // Specific backend validation message (e.g. Email already registered)
+          if (msgEl) {
+            msgEl.style.color = '#dc2626';
+            msgEl.textContent = `❌ ${err.message || 'Registration failed'}`;
+          }
           return;
         }
+        console.warn('Backend server offline during registration, falling back to local account:', err);
       }
-      // Offline fallback
+    }
+
+    if (serverUser) {
+      this.state.student.id = serverUser.id;
+      this.state.student.email = serverUser.email || email;
+      this.state.student.fullName = serverUser.fullName || serverUser.full_name || fullName;
+      this.state.student.avatarUrl = serverUser.avatarUrl || serverUser.avatar_url || avatarUrl;
+      this.state.student.description = serverUser.description || description;
+      this.state.student.isGuest = false;
+      this.state.student.abilitiesHax = serverUser.abilitiesHax || 
+        JSON.parse(serverUser.abilities_hax_json || '[]') || 
+        JSON.parse(JSON.stringify(window.SMS_MODELS.DEFAULT_ABILITIES_HAX));
+      this.state.student.currentStreakDays = 0;
+      this.state.student.streakStatus = 'ACTIVE';
+
+      window.smsStorage.saveState(this.state);
+      await this.syncWithBackend();
+      this.render();
+      this.closeAuthModal();
+      this.showToast(`🎉 Account created! Welcome, ${this.state.student.fullName}.`);
+    } else {
+      // Local account creation fallback
       this.state.student.id = 'student-' + Date.now();
       this.state.student.fullName = fullName;
       this.state.student.email = email;
@@ -1638,11 +1706,6 @@ class AppController {
       this.render();
       this.closeAuthModal();
       this.showToast(`🎉 Account created! Welcome, ${fullName}.`);
-    } catch (err) {
-      if (msgEl) {
-        msgEl.style.color = '#dc2626';
-        msgEl.textContent = `❌ ${err.message || 'Registration failed'}`;
-      }
     }
   }
 

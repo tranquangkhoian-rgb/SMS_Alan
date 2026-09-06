@@ -103,7 +103,7 @@ async function runGitSync() {
       fs,
       dir: repoDir,
       author,
-      message: 'feat: add blank guest mode, full access without login, interactive abilities edit space with title picker and live capability editing'
+      message: 'fix: make gmail/email optional for registration and login, fix fetch errors with resilient fallback'
     });
     console.log('✅ Commit created successfully! Commit SHA:', sha);
   } catch (err) {

@@ -208,6 +208,24 @@ async function runApiTests() {
   });
   assert(failLogin.status === 401, 'Login with incorrect password returns HTTP 401');
 
+  // Test 18: Register with Optional Email Omitted (Username Only)
+  const regNoEmail = await request('POST', '/api/v1/auth/register', {
+    fullName: 'TestUserNoEmail',
+    password: 'securePass123',
+    avatarUrl: '🦁',
+    description: 'User registered without providing email.'
+  });
+  assert(regNoEmail.status === 200, 'Registering with email omitted succeeds with HTTP 200');
+  assert(regNoEmail.body.data.fullName === 'TestUserNoEmail', 'User registered with username only');
+
+  // Test 19: Login with Username (No email required)
+  const loginUsername = await request('POST', '/api/v1/auth/login', {
+    username: 'TestUserNoEmail',
+    password: 'securePass123'
+  });
+  assert(loginUsername.status === 200, 'Login using username only succeeds with HTTP 200');
+  assert(loginUsername.body.data.fullName === 'TestUserNoEmail', 'Authenticated user by username');
+
   console.log('\n========================================================');
   console.log(`Test Results: ${testsPassed} Passed, ${testsFailed} Failed`);
   console.log('========================================================');
