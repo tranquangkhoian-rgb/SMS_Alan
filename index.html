@@ -32,8 +32,11 @@
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 24px;">
-        <button id="btn-load-day1" class="btn-secondary-sm" title="Reset to Day 1 (Phase 1)">
-          🌱 Reset to Day 1 (Default)
+        <button id="btn-load-guest" class="btn-secondary-sm" title="Reset to clean blank Guest state">
+          🌱 Reset to Blank (Guest)
+        </button>
+        <button id="btn-load-alan" class="btn-secondary-sm" title="Load Alan's Pre-filled Demo Template">
+          🧑‍🎓 Load Alan Demo (Prefilled)
         </button>
         <button id="btn-reset-fresh" class="btn-secondary-sm" title="Start fresh from Step 1 Onboarding">
           🔄 Reset to Onboarding
@@ -43,7 +46,7 @@
 
     <!-- Main Content Wrapper -->
     <div class="main-wrapper">
-      <!-- Top Utility Header with Beta Testing Controls -->
+      <!-- Top Utility Header with Profile and Beta Testing Controls -->
       <header class="top-bar">
         <div class="top-left-status">
           <div id="top-streak-display" class="streak-pill">
@@ -53,12 +56,23 @@
             Day 1/90 | Phase 1: Priority & Discipline
           </div>
           <div id="backend-status-badge" class="status-offline">
-            🟡 Storage: Local
+            🟡 Mode: Guest
           </div>
         </div>
 
-        <!-- Beta Testing Toolset -->
+        <!-- User Profile & Beta Testing Toolset -->
         <div class="top-right-actions">
+          <div class="user-profile-widget">
+            <button id="btn-open-profile" class="profile-chip" title="Edit Profile, Habits & Abilities">
+              <span id="chip-avatar" class="profile-chip-avatar">👤</span>
+              <span id="chip-name" class="profile-chip-name">Guest User</span>
+              <span class="profile-chip-edit">⚙️</span>
+            </button>
+            <button id="btn-open-auth" class="btn-secondary-sm" title="Log In or Create Account">
+              🔑 Log In / Create Account
+            </button>
+          </div>
+
           <button id="btn-skip-day" class="btn-secondary-sm btn-beta-skip" title="Advance calendar by 1 day for beta testing">
             ⏭️ Skip Day (+1 Day)
           </button>
@@ -78,6 +92,34 @@
           <div class="canva-card">
             <h2 class="section-title">4. Dashboard</h2>
             
+            <!-- Student Profile Hero Card -->
+            <div class="dashboard-profile-hero">
+              <div class="profile-hero-left">
+                <div id="dash-avatar" class="profile-hero-avatar">👤</div>
+                <div class="profile-hero-info">
+                  <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <span id="dash-student-name" class="profile-hero-name">Guest User</span>
+                    <span id="dash-student-email" class="badge-guest">Guest Mode (Local Storage)</span>
+                  </div>
+                  <p id="dash-student-desc" class="profile-hero-desc" style="font-style: italic;">
+                    No bio yet. Click Customize to set up your profile and superpowers.
+                  </p>
+                  <div id="dash-abilities-container" class="profile-hax-badges">
+                    <span style="font-size: 11px; color: #94a3b8; font-style: italic;">✨ No abilities added yet. Click Customize to type what you can do!</span>
+                  </div>
+                </div>
+              </div>
+              <button id="btn-dash-edit-profile" class="btn-secondary-sm" style="white-space: nowrap;">
+                ⚙️ Customize Profile & Abilities
+              </button>
+            </div>
+
+            <!-- Daily Habit Routine Banner -->
+            <div class="dash-habit-summary">
+              <span style="font-size: 18px;">⚡</span>
+              <span><strong>Core Habit:</strong> When <span id="dash-habit-cue" style="color: #0284c7; font-weight: 700;">[Your Cue]</span> ➔ <span id="dash-habit-routine" style="color: #16a34a; font-weight: 700;">[2-Minute Routine]</span> ➔ <span id="dash-habit-reward" style="color: #ea580c; font-weight: 700;">[Reward]</span></span>
+            </div>
+
             <div style="border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 20px;">
               <h3 id="dash-program-banner" style="font-size: 20px; font-weight: 800; color: #0f172a;">
                 90-Day Program: Day 1/90 Phase 1 (Days 1-30): Priority & Discipline
@@ -86,10 +128,10 @@
 
             <div style="margin-bottom: 24px;">
               <p style="font-size: 18px; font-weight: 700; margin-bottom: 6px;">
-                Today's Main Task (Top-1): <span id="dash-top1-task" style="font-weight: 500;">Finish English homework and review 5 vocabulary words.</span>
+                Today's Main Task (Top-1): <span id="dash-top1-task" style="font-weight: 500; color: #64748b;">(No task planned yet - click Plan below)</span>
               </p>
               <p style="font-size: 16px; color: #475569; font-weight: 600; margin-bottom: 20px;">
-                Focus Time: <span id="dash-focus-time">19:45 (20 mins)</span>
+                Focus Time: <span id="dash-focus-time">Not scheduled</span>
               </p>
               
               <div style="display: flex; gap: 16px;">
@@ -118,27 +160,27 @@
             
             <div class="form-group">
               <label class="form-label">90-day goal:</label>
-              <textarea id="goal-input-statement" class="form-textarea">Students learn repeatly every day and upgraded their English's score form 9 to 9.5 and talk more confidently.</textarea>
+              <textarea id="goal-input-statement" class="form-textarea" placeholder="e.g. Study repeatedly every day and upgrade my score from 9 to 9.5 and speak more confidently..."></textarea>
             </div>
 
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Subject:</label>
-                <input id="goal-input-subject" class="form-input" type="text" value="English" />
+                <input id="goal-input-subject" class="form-input" type="text" placeholder="e.g. English, Math..." />
               </div>
               <div class="form-group">
                 <label class="form-label">Right now:</label>
-                <input id="goal-input-baseline" class="form-input" type="text" value="9" />
+                <input id="goal-input-baseline" class="form-input" type="text" placeholder="e.g. 9.0" />
               </div>
               <div class="form-group">
                 <label class="form-label">Goal:</label>
-                <input id="goal-input-target" class="form-input" type="text" value="9.5" />
+                <input id="goal-input-target" class="form-input" type="text" placeholder="e.g. 9.5" />
               </div>
             </div>
 
             <div class="form-group">
               <label class="form-label">Why did you choose this goal?</label>
-              <textarea id="goal-input-motivation" class="form-textarea">Because I want to talk more confidently and showed excellent academic results for future exam that i about to get.</textarea>
+              <textarea id="goal-input-motivation" class="form-textarea" placeholder="e.g. Because I want to speak confidently and achieve high academic results..."></textarea>
             </div>
 
             <div class="btn-group-right">
@@ -152,13 +194,13 @@
             
             <div class="form-group">
               <label class="form-label">Daily Free Time</label>
-              <input id="time-input-freetime" class="form-input" style="max-width: 200px;" type="text" value="30 mins / day" />
+              <input id="time-input-freetime" class="form-input" style="max-width: 200px;" type="text" value="30 mins / day" placeholder="e.g. 30 mins / day" />
             </div>
 
             <div class="form-row" style="margin-bottom: 16px;">
               <div class="form-group">
                 <label class="form-label">Priority Focus Time Slot:</label>
-                <input id="time-input-slot" class="form-input" type="time" value="19:45" />
+                <input id="time-input-slot" class="form-input" type="time" value="19:00" />
               </div>
               <div class="form-group">
                 <label class="form-label">Default Duration (mins):</label>
@@ -189,17 +231,17 @@
             
             <div class="form-group">
               <label class="form-label">1. Habit cue:</label>
-              <input id="habit-input-cue" class="form-input" type="text" value="After school..." />
+              <input id="habit-input-cue" class="form-input" type="text" placeholder="e.g. After school when I sit at my desk..." />
             </div>
 
             <div class="form-group">
               <label class="form-label">2. Minute Routine (Routine: 2 min):</label>
-              <input id="habit-input-routine" class="form-input" type="text" value="Sit at my desk and learn 5 new English words." />
+              <input id="habit-input-routine" class="form-input" type="text" placeholder="e.g. Open textbook and learn 5 new vocabulary words..." />
             </div>
 
             <div class="form-group">
               <label class="form-label">3. Immediate Reward :</label>
-              <input id="habit-input-reward" class="form-input" type="text" value="Stick a sticker and listen to my favorite song." />
+              <input id="habit-input-reward" class="form-input" type="text" placeholder="e.g. Stick a star on my tracker and listen to my favorite song..." />
             </div>
 
             <div class="btn-group-right">
@@ -224,11 +266,11 @@
 
             <div class="form-group">
               <label class="form-label">1. Top-1 + Timebox Objectives:</label>
-              <input id="daily-input-top1" class="form-input" type="text" value="Learn 5 new English words" />
+              <input id="daily-input-top1" class="form-input" type="text" placeholder="e.g. Finish homework and review 5 vocabulary words..." />
               <div class="form-row" style="margin-top: 10px;">
                 <div>
                   <label class="form-label">Start at:</label>
-                  <input id="daily-input-start-time" class="form-input" type="time" value="19:50" />
+                  <input id="daily-input-start-time" class="form-input" type="time" value="19:00" />
                 </div>
                 <div>
                   <label class="form-label">Duration (Minutes):</label>
@@ -242,11 +284,11 @@
               <div class="form-row">
                 <div>
                   <label class="form-label" style="font-weight: 600; color: #64748b;">IF:</label>
-                  <input id="daily-input-if" class="form-input" type="text" value="want to use phone" />
+                  <input id="daily-input-if" class="form-input" type="text" placeholder="e.g. want to use phone" />
                 </div>
                 <div>
                   <label class="form-label" style="font-weight: 600; color: #64748b;">THEN:</label>
-                  <input id="daily-input-then" class="form-input" type="text" value="Put phone out of reach" />
+                  <input id="daily-input-then" class="form-input" type="text" placeholder="e.g. Put phone out of reach" />
                 </div>
               </div>
             </div>
@@ -254,11 +296,11 @@
             <div class="form-group" style="margin-top: 24px;">
               <label class="form-label">3. 2 Minutes Habit (Minimum)</label>
               <div class="habit-routine-flow">
-                <span>Take A Bath</span>
+                <span id="dash-habit-flow-cue">Cue</span>
                 <span class="habit-arrow">→</span>
-                <span>Learn 5 vocabulary words</span>
+                <span id="dash-habit-flow-routine">2-min Micro-Routine</span>
                 <span class="habit-arrow">→</span>
-                <span>Listen to Music</span>
+                <span id="dash-habit-flow-reward">Immediate Reward</span>
               </div>
               <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
                 <input id="check-min-habit" type="checkbox" style="width: 20px; height: 20px; cursor: pointer;" />
@@ -275,8 +317,8 @@
           <div id="daily-step-timer-card" class="canva-card" style="display: none;">
             <h2 class="section-title">6. Daily - 2. Focus Timer</h2>
 
-            <p id="timer-meta-banner" style="font-weight: 700; font-size: 16px; margin-bottom: 12px;">
-              Completed English homework | Start: 19:45 | Goal: 20 min
+            <p id="timer-meta-banner" style="font-weight: 700; font-size: 16px; margin-bottom: 12px; color: #334155;">
+              Focus Session | Start: 19:00 | Goal: 20 min
             </p>
 
             <div class="timer-container">
@@ -309,12 +351,12 @@
 
             <div class="form-group">
               <label class="form-label">Done (Summary in 1 sentence):</label>
-              <input id="timer-input-summary" class="form-input" type="text" value="Have completed the lesson, learned 5 new words" />
+              <input id="timer-input-summary" class="form-input" type="text" placeholder="e.g. Completed today's focus lesson, learned 5 new words..." />
             </div>
 
             <div class="form-group">
               <label class="form-label">Next step :</label>
-              <input id="timer-input-nextstep" class="form-input" type="text" value="Next morning, practiced back these 5 words" />
+              <input id="timer-input-nextstep" class="form-input" type="text" placeholder="e.g. Next session, practice these concepts..." />
             </div>
 
             <div class="btn-group-right">
@@ -327,22 +369,22 @@
             <h2 class="section-title">7. Daily - 3. End Day</h2>
 
             <div id="end-scoreboard-recap" class="scoreboard-box" style="margin-top: 0; margin-bottom: 24px;">
-              Scoreboard Recap : Priority: 1/1 | Discipline: 1/1 | Habit: 1/1 | Grit (Reset): 0/1 | Self-learning: 0/1
+              Scoreboard Recap : Priority: 0/1 | Discipline: 0/1 | Habit: 0/1 | Grit (Reset): 0/1 | Self-learning: 0/1
             </div>
 
             <div class="form-group">
               <label class="form-label">Reflection (3 prompts):</label>
               <div style="margin-bottom: 10px;">
                 <label style="font-size: 14px; font-weight: 600; color: #475569;">1) Intended outcome:</label>
-                <input id="refl-input-intended" class="form-input" type="text" value="Master the grammar of present tense." />
+                <input id="refl-input-intended" class="form-input" type="text" placeholder="e.g. Mastered the key concepts intended for today..." />
               </div>
               <div style="margin-bottom: 10px;">
                 <label style="font-size: 14px; font-weight: 600; color: #475569;">2) What happened:</label>
-                <input id="refl-input-happened" class="form-input" type="text" value="Still a few mistakes when conjuncting singular verbs" />
+                <input id="refl-input-happened" class="form-input" type="text" placeholder="e.g. Encountered friction on problem 3 but worked through it..." />
               </div>
               <div style="margin-bottom: 10px;">
                 <label style="font-size: 14px; font-weight: 600; color: #475569;">3) One tweak for tomorrow:</label>
-                <input id="refl-input-tweak" class="form-input" type="text" value="Read the subject carefully before filling in the answer" />
+                <input id="refl-input-tweak" class="form-input" type="text" placeholder="e.g. Read the problem statement carefully before answering..." />
               </div>
             </div>
 
@@ -358,11 +400,11 @@
                 <div class="form-row">
                   <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label" style="color: #9f1239;">Reason:</label>
-                    <input id="safety-input-reason" class="form-input" type="text" value="exhausted" />
+                    <input id="safety-input-reason" class="form-input" type="text" placeholder="e.g. exhausted from sports" />
                   </div>
                   <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label" style="color: #9f1239;">Action to fix mistake tomorrow:</label>
-                    <input id="safety-input-action" class="form-input" type="text" value="Only do homework for minimum for 2 mins" />
+                    <input id="safety-input-action" class="form-input" type="text" placeholder="e.g. Only do homework for minimum 2 mins" />
                   </div>
                 </div>
                 <p style="font-size: 12px; color: #be123c; font-weight: 700; margin-top: 8px;">
@@ -388,15 +430,15 @@
 
             <div style="margin-bottom: 24px;">
               <h3 id="weekly-objective-header" style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 16px;">
-                90-DAY OBJECTIVE: Study regularly every day and improve your English score from 9.0 to 9.5.
+                90-DAY OBJECTIVE: Study regularly every day.
               </h3>
 
               <div class="form-group">
                 <label class="form-label">1. Expected Outcomes (3 Key Results):</label>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <input id="weekly-kr-1" class="form-input" type="text" value="Complete 3 English listening tests. (Hoàn thành 3 bài kiểm tra nghe)." />
-                  <input id="weekly-kr-2" class="form-input" type="text" value="Master 3 advanced vocabulary words daily. (Làm chủ 3 từ vựng nâng cao mỗi ngày)." />
-                  <input id="weekly-kr-3" class="form-input" type="text" value="Practice speaking for 15 minutes every morning. (Luyện nói 15 phút mỗi sáng)." />
+                  <input id="weekly-kr-1" class="form-input" type="text" placeholder="Key Result 1: e.g. Complete 3 practice listening tests..." />
+                  <input id="weekly-kr-2" class="form-input" type="text" placeholder="Key Result 2: e.g. Master 3 advanced vocabulary words daily..." />
+                  <input id="weekly-kr-3" class="form-input" type="text" placeholder="Key Result 3: e.g. Practice speaking for 15 minutes every morning..." />
                 </div>
               </div>
 
@@ -424,6 +466,217 @@
         </section>
 
       </main>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: PROFILE, HABIT & ABILITIES ================= -->
+  <div id="modal-profile" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">👤 Customize Profile, Habit & Behavioral Hax</h3>
+        <button id="btn-close-profile-modal" class="modal-close" title="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Tabs -->
+        <div class="modal-tabs">
+          <button id="tab-btn-profile-info" class="modal-tab-btn active" data-target="tab-pane-profile-info">🧑‍🎓 Profile</button>
+          <button id="tab-btn-profile-habit" class="modal-tab-btn" data-target="tab-pane-profile-habit">🔁 Habit Routine</button>
+          <button id="tab-btn-profile-abilities" class="modal-tab-btn" data-target="tab-pane-profile-abilities">⚡ Abilities / Hax</button>
+        </div>
+
+        <!-- Pane 1: Profile Info -->
+        <div id="tab-pane-profile-info" class="modal-tab-pane active">
+          <div class="avatar-selection-row">
+            <div class="avatar-preview-box">
+              <div id="profile-preview-avatar" class="avatar-preview-circle">🧑‍🎓</div>
+              <span style="font-size: 11px; font-weight: 700; color: #64748b;">Current Avatar</span>
+            </div>
+            <div style="flex: 1;">
+              <label class="form-label" style="margin-bottom: 6px;">Choose Preset Avatar:</label>
+              <div id="avatar-presets-container" class="avatar-preset-grid">
+                <!-- Preset avatar icons -->
+              </div>
+              <div style="margin-top: 10px;">
+                <label class="form-label" style="margin-bottom: 4px; font-size: 12px;">Or Custom Emoji / Image URL:</label>
+                <input id="input-custom-avatar" type="text" class="form-input" placeholder="e.g. 🦸, 🏆, or https://... image url" />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Full Name:</label>
+            <input id="input-profile-name" type="text" class="form-input" placeholder="Guest User or Your Name" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Email (Account ID):</label>
+            <input id="input-profile-email" type="email" class="form-input" placeholder="guest@local (Sign in to attach an account)" readonly style="background: #f1f5f9; cursor: not-allowed;" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Self-Description / Bio / Motivation:</label>
+            <textarea id="textarea-profile-desc" class="form-textarea" rows="3" placeholder="Describe your student identity, goals, or deep motivations..."></textarea>
+          </div>
+        </div>
+
+        <!-- Pane 2: Core Habit -->
+        <div id="tab-pane-profile-habit" class="modal-tab-pane">
+          <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">
+            The Golden Habit Loop: Link a distinct daily environmental cue to a friction-free 2-minute micro-routine and immediate emotional dopamine reward.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label">1. Environmental Cue (When / After...):</label>
+            <input id="input-profile-cue" type="text" class="form-input" placeholder="e.g. After school when I sit at my desk..." />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">2. 2-Minute Micro-Routine (I will immediately do minimum 2 mins...):</label>
+            <input id="input-profile-routine" type="text" class="form-input" placeholder="e.g. Open textbook and learn 5 new English words..." />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">3. Immediate Reward (Then I will celebrate with...):</label>
+            <input id="input-profile-reward" type="text" class="form-input" placeholder="e.g. Stick a sticker and listen to my favorite song..." />
+          </div>
+        </div>
+
+        <!-- Pane 3: Behavioral Abilities & Edit Space -->
+        <div id="tab-pane-profile-abilities" class="modal-tab-pane">
+          <div style="margin-bottom: 14px;">
+            <h4 style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 2px;">⚡ Abilities & Behavioral Superpowers</h4>
+            <p style="font-size: 13px; color: #64748b; margin-bottom: 0;">
+              Pick from various preset titles or type your own, then describe what you can do in your study workflow.
+            </p>
+          </div>
+
+          <!-- Add / Configure Ability Edit Space -->
+          <div class="add-ability-panel">
+            <div class="add-ability-title">➕ Add an Ability (What You Can Do)</div>
+
+            <div class="form-group" style="margin-bottom: 8px;">
+              <label class="form-label" style="font-size: 12px; margin-bottom: 4px;">1. Choose a Title from presets:</label>
+              <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                <select id="select-preset-hax-title" class="form-input" style="flex: 1; font-weight: 600;">
+                  <option value="">-- Select from popular ability titles --</option>
+                </select>
+                <input id="input-new-hax-icon" type="text" class="form-input" placeholder="⚡" value="⚡" style="width: 50px; text-align: center; font-size: 18px;" title="Icon / Emoji" />
+                <select id="select-new-hax-type" class="form-input" style="width: 130px; font-weight: 600;">
+                  <option value="Discipline">Discipline</option>
+                  <option value="Focus">Focus</option>
+                  <option value="Grit">Grit</option>
+                  <option value="Self-Learning">Self-Learning</option>
+                  <option value="Custom">Custom</option>
+                </select>
+              </div>
+
+              <!-- Quick Choice Title Pills -->
+              <div style="margin-bottom: 8px;">
+                <span style="font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 4px; display: block;">Quick-pick title:</span>
+                <div id="quick-title-chips" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+              </div>
+
+              <input id="input-new-hax-name" type="text" class="form-input" placeholder="Or type a custom title (e.g. 5-Minute Momentum Hook)..." style="font-weight: 700;" />
+            </div>
+
+            <!-- "What I Can Do" Edit Space -->
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label class="form-label" style="font-size: 12px; margin-bottom: 4px;">2. Type What You Can Do (Capability / Action Rule):</label>
+              <textarea id="input-new-hax-desc" class="form-textarea" rows="2" placeholder="Describe what you can do (e.g. 'I can start studying within 90s before excuses kick in', 'I can put my phone away when starting math')..."></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+              <button id="btn-add-new-hax" type="button" class="btn-canva btn-canva-primary" style="padding: 6px 16px; font-size: 13px;">
+                ➕ Add to My Abilities
+              </button>
+            </div>
+          </div>
+
+          <!-- Existing Configured Abilities -->
+          <div style="margin-top: 18px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label class="form-label" style="font-size: 13px; font-weight: 800; margin-bottom: 0;">My Active & Configured Abilities:</label>
+              <span id="abilities-count-badge" style="font-size: 12px; color: #64748b; font-weight: 600;">0 abilities</span>
+            </div>
+            <div id="abilities-list-container" class="abilities-container">
+              <!-- Dynamically rendered editable cards -->
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-profile" class="btn-canva" type="button">Cancel</button>
+        <button id="btn-save-profile" class="btn-canva btn-canva-primary" type="button">💾 Save Profile & Abilities</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: AUTHENTICATION (LOGIN / REGISTER) ================= -->
+  <div id="modal-auth" class="modal-overlay">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🔐 SMS Account & Authentication</h3>
+        <button id="btn-close-auth-modal" class="modal-close" title="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Auth Tabs -->
+        <div class="modal-tabs">
+          <button id="tab-btn-auth-login" class="modal-tab-btn active" data-target="tab-pane-auth-login">🔑 Log In</button>
+          <button id="tab-btn-auth-register" class="modal-tab-btn" data-target="tab-pane-auth-register">✨ Create Account</button>
+        </div>
+
+        <!-- Login Pane -->
+        <div id="tab-pane-auth-login" class="modal-tab-pane active">
+          <div class="form-group">
+            <label class="form-label">Email Address:</label>
+            <input id="input-login-email" type="email" class="form-input" placeholder="Enter your email address" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password:</label>
+            <input id="input-login-password" type="password" class="form-input" placeholder="Enter your password" />
+          </div>
+          <div id="auth-login-msg" style="font-size: 13px; margin-bottom: 12px; min-height: 18px;"></div>
+          <button id="btn-do-login" class="btn-canva btn-canva-primary" style="width: 100%; justify-content: center;">Log In to SMS</button>
+
+          <div style="margin-top: 20px; padding-top: 14px; border-top: 1px dashed #cbd5e1; display: flex; flex-direction: column; gap: 8px; text-align: center;">
+            <button id="btn-quick-switch-alan" class="btn-secondary-sm" style="width: 100%; justify-content: center;">
+              🧑‍🎓 Quick Log In: Alan Demo Account
+            </button>
+            <button id="btn-continue-guest" class="btn-secondary-sm" style="width: 100%; justify-content: center;">
+              👤 Continue as Guest (Offline / Local Mode)
+            </button>
+          </div>
+        </div>
+
+        <!-- Register Pane -->
+        <div id="tab-pane-auth-register" class="modal-tab-pane">
+          <div class="form-group">
+            <label class="form-label">Full Name:</label>
+            <input id="input-reg-name" type="text" class="form-input" placeholder="e.g. Alex Nguyen" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address:</label>
+            <input id="input-reg-email" type="email" class="form-input" placeholder="alex@school.edu.vn" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password:</label>
+            <input id="input-reg-password" type="password" class="form-input" placeholder="At least 4 characters" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Choose Avatar:</label>
+            <div id="reg-avatar-presets" class="avatar-preset-grid" style="margin-bottom: 8px;">
+              <!-- Register presets -->
+            </div>
+            <input id="input-reg-avatar" type="text" class="form-input" value="🧑‍🎓" placeholder="Emoji or avatar image URL" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description / Bio (Optional):</label>
+            <input id="input-reg-desc" type="text" class="form-input" placeholder="e.g. Student building focused study habits" />
+          </div>
+          <div id="auth-reg-msg" style="font-size: 13px; margin-bottom: 12px; min-height: 18px;"></div>
+          <button id="btn-do-register" class="btn-canva btn-canva-primary" style="width: 100%; justify-content: center;">Create Account & Start SMS</button>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -165,6 +165,83 @@ class ApiClient {
     }
     return null;
   }
+
+  async register(payload) {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Registration failed');
+      return data;
+    } catch (e) {
+      console.warn('Register error:', e);
+      throw e;
+    }
+  }
+
+  async login(payload) {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Login failed');
+      return data;
+    } catch (e) {
+      console.warn('Login error:', e);
+      throw e;
+    }
+  }
+
+  async getMe() {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/v1/auth/me`);
+      if (res.ok) {
+        const json = await res.json();
+        return json.data;
+      }
+    } catch (e) {
+      console.warn('Get current user profile error:', e);
+    }
+    return null;
+  }
+
+  async updateProfile(payload) {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/v1/user/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Update profile failed');
+      return data;
+    } catch (e) {
+      console.warn('Update profile error:', e);
+      throw e;
+    }
+  }
+
+  async updateHabit(payload) {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/v1/user/habit`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Update habit failed');
+      return data;
+    } catch (e) {
+      console.warn('Update habit error:', e);
+      throw e;
+    }
+  }
 }
 
 window.smsApiClient = new ApiClient();

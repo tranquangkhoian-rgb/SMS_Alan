@@ -151,6 +151,63 @@ async function runApiTests() {
   });
   assert(weekly.status === 200, 'Weekly review finalize returns HTTP 200');
 
+  // Test 12: Current User Profile (auth/me)
+  const me = await request('GET', '/api/v1/auth/me');
+  assert(me.status === 200, 'auth/me returns HTTP 200');
+  assert(me.body.data.fullName.length > 0, 'auth/me returns student fullName');
+  assert(Array.isArray(me.body.data.abilitiesHax), 'auth/me returns abilitiesHax array');
+
+  // Test 13: Update User Profile (Name, Avatar, Description, Abilities)
+  const updatedAbilities = [
+    { id: 'hax-1', name: '90-Second Ritual', icon: '⚡', type: 'Discipline', description: 'Quick start', active: true },
+    { id: 'hax-test', name: 'Ultra Deep Work', icon: '🚀', type: 'Focus', description: 'Laser focus block', active: true, isCustom: true }
+  ];
+  const updateProf = await request('PUT', '/api/v1/user/profile', {
+    full_name: 'Trần Quang Khôi An (Master)',
+    avatar_url: '🚀',
+    description: 'Master of self-regulation and deliberate practice.',
+    abilities_hax: updatedAbilities
+  });
+  assert(updateProf.status === 200, 'PUT /api/v1/user/profile returns HTTP 200');
+  assert(updateProf.body.data.avatarUrl === '🚀', 'Profile avatar updated to 🚀');
+  assert(updateProf.body.data.abilitiesHax.length === 2, 'Abilities/Hax updated in SQLite');
+
+  // Test 14: Update Habit
+  const updateHab = await request('PUT', '/api/v1/user/habit', {
+    habit_cue: 'Right after dinner at 19:30',
+    micro_routine_2min: 'Sit down and solve 1 advanced problem',
+    immediate_reward: 'Listen to favourite soundtrack'
+  });
+  assert(updateHab.status === 200, 'PUT /api/v1/user/habit returns HTTP 200');
+  assert(updateHab.body.data.habitCue === 'Right after dinner at 19:30', 'Habit cue updated in SQLite');
+
+  // Test 15: Register New User
+  const testEmail = `testuser_${Date.now()}@vinschool.edu.vn`;
+  const regUser = await request('POST', '/api/v1/auth/register', {
+    fullName: 'Minh Chau',
+    email: testEmail,
+    password: 'password123',
+    avatarUrl: '👩‍🔬',
+    description: 'Science enthusiast building daily study habits.'
+  });
+  assert(regUser.status === 200, 'POST /api/v1/auth/register returns HTTP 200');
+  assert(regUser.body.data.email === testEmail, 'New user successfully registered in SQLite');
+
+  // Test 16: Login with New User Credentials
+  const loginUser = await request('POST', '/api/v1/auth/login', {
+    email: testEmail,
+    password: 'password123'
+  });
+  assert(loginUser.status === 200, 'POST /api/v1/auth/login returns HTTP 200');
+  assert(loginUser.body.data.fullName === 'Minh Chau', 'Login returns authenticated user');
+
+  // Test 17: Login with Invalid Password (should fail with 401)
+  const failLogin = await request('POST', '/api/v1/auth/login', {
+    email: testEmail,
+    password: 'wrong_password'
+  });
+  assert(failLogin.status === 401, 'Login with incorrect password returns HTTP 401');
+
   console.log('\n========================================================');
   console.log(`Test Results: ${testsPassed} Passed, ${testsFailed} Failed`);
   console.log('========================================================');

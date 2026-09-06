@@ -12,6 +12,7 @@ class AppController {
     this.timerDuration = (this.state.focusSession && this.state.focusSession.plannedSeconds) || 1200;
     this.remainingSeconds = this.timerDuration;
     this.timerState = 'STOPPED'; // 'STOPPED', 'RUNNING', 'PAUSED'
+    this.selectedAvatar = (this.state.student && this.state.student.avatarUrl) || '🧑‍🎓';
   }
 
   init() {
@@ -22,6 +23,7 @@ class AppController {
 
     this.initTimerWorker();
     this.bindEvents();
+    this.initProfileAndAuth();
     this.render();
     this.syncWithBackend();
   }
@@ -34,14 +36,39 @@ class AppController {
         if (isOnline) {
           badge.textContent = '🟢 Backend: SQLite3 Online';
           badge.className = 'status-online';
-          // Optionally hydrate from SQLite
+
+          // If current user is a guest, keep blank local state instead of overwriting with Alan's seed data
+          if (this.state.student && this.state.student.isGuest) {
+            this.render();
+            return;
+          }
+
+          // Hydrate user profile from SQLite
+          const me = await window.smsApiClient.getMe();
+          if (me) {
+            if (me.fullName) this.state.student.fullName = me.fullName;
+            if (me.email) this.state.student.email = me.email;
+            if (me.avatarUrl) this.state.student.avatarUrl = me.avatarUrl;
+            if (me.description) this.state.student.description = me.description;
+            if (me.abilitiesHax && me.abilitiesHax.length > 0) this.state.student.abilitiesHax = me.abilitiesHax;
+            if (me.streakDays !== undefined) this.state.student.currentStreakDays = me.streakDays;
+            if (me.streakStatus) this.state.student.streakStatus = me.streakStatus;
+            if (me.habit) {
+              if (me.habit.habitCue) this.state.habit.habitCue = me.habit.habitCue;
+              if (me.habit.microRoutine2min) this.state.habit.microRoutine2min = me.habit.microRoutine2min;
+              if (me.habit.immediateReward) this.state.habit.immediateReward = me.habit.immediateReward;
+            }
+          }
+
           const summary = await window.smsApiClient.getDashboardSummary();
           if (summary && summary.roadmap) {
             this.state.goal.currentDayNumber = summary.roadmap.currentDay;
             this.state.goal.currentPhase = summary.roadmap.phaseNumber;
-            this.state.student.currentStreakDays = summary.student.streakDays;
-            this.render();
+            if (summary.student) {
+              this.state.student.currentStreakDays = summary.student.streakDays;
+            }
           }
+          this.render();
         } else {
           badge.textContent = '🟡 Storage: Local';
           badge.className = 'status-offline';
@@ -493,21 +520,42 @@ class AppController {
       });
     }
 
-    // Reset Buttons
-    document.getElementById('btn-load-day1').addEventListener('click', () => {
-      this.state = window.smsStorage.resetToDay1();
-      this.timerDuration = 1200;
-      this.remainingSeconds = 1200;
-      this.switchTab('dashboard');
-      this.showToast('🌱 Initialized Day 1 / 90 (Priority & Discipline)');
-    });
+    // Reset & Template Buttons
+    const btnGuest = document.getElementById('btn-load-guest') || document.getElementById('btn-load-day1');
+    if (btnGuest) {
+      btnGuest.addEventListener('click', () => {
+        this.state = window.smsStorage.resetToGuest();
+        this.timerDuration = 1200;
+        this.remainingSeconds = 1200;
+        this.resetTimer();
+        this.switchTab('dashboard');
+        this.render();
+        this.showToast('🌱 Initialized clean blank Guest mode!');
+      });
+    }
 
-    document.getElementById('btn-reset-fresh').addEventListener('click', () => {
-      this.state = window.smsStorage.resetToFresh();
-      this.switchTab('goals');
-      this.switchOnboardingStep(1);
-      this.showToast('🔄 Initialized fresh onboarding wizard.');
-    });
+    const btnAlan = document.getElementById('btn-load-alan');
+    if (btnAlan) {
+      btnAlan.addEventListener('click', () => {
+        this.state = window.smsStorage.loadAlanDemo();
+        this.timerDuration = 1200;
+        this.remainingSeconds = 1200;
+        this.resetTimer();
+        this.switchTab('dashboard');
+        this.render();
+        this.showToast('🧑‍🎓 Loaded Alan\'s prefilled demo template!');
+      });
+    }
+
+    const btnResetFresh = document.getElementById('btn-reset-fresh');
+    if (btnResetFresh) {
+      btnResetFresh.addEventListener('click', () => {
+        this.state = window.smsStorage.resetToFresh();
+        this.switchTab('goals');
+        this.switchOnboardingStep(1);
+        this.showToast('🔄 Initialized fresh onboarding wizard.');
+      });
+    }
 
     // Dashboard Buttons
     document.getElementById('dash-btn-plan').addEventListener('click', () => {
@@ -824,6 +872,9 @@ class AppController {
 
     // Render Schedule lists
     this.renderWeeklySchedule();
+
+    // Render Student Profile & Hero Card
+    this.renderStudentProfile();
   }
 
   renderScoreboard() {
@@ -857,6 +908,741 @@ class AppController {
       const g = this.state.scoreboard.gritScore;
       const s = this.state.scoreboard.selfLearningScore;
       recapEl.innerHTML = `Scoreboard Recap : Priority: <strong>${p}/1</strong> | Discipline: <strong>${d}/1</strong> | Habit: <strong>${h}/1</strong> | Grit (Reset): <strong>${g}/1</strong> | Self-learning: <strong>${s}/1</strong>`;
+    }
+  }
+
+  /* ================== USER PROFILE & AUTHENTICATION ================== */
+  renderAvatarContent(avatar) {
+    if (!avatar) return '🧑‍🎓';
+    if (avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('data:image')) {
+      return `<img src="${avatar}" alt="Avatar" />`;
+    }
+    return avatar;
+  }
+
+  renderStudentProfile() {
+    const student = this.state.student || {};
+    const habit = this.state.habit || {};
+
+    // Top Bar Chip
+    const chipAvatar = document.getElementById('chip-avatar');
+    if (chipAvatar) chipAvatar.innerHTML = this.renderAvatarContent(student.avatarUrl || (student.isGuest ? '👤' : '🧑‍🎓'));
+
+    const chipName = document.getElementById('chip-name');
+    if (chipName) chipName.textContent = student.fullName || (student.isGuest ? 'Guest User' : 'Student');
+
+    const chipMode = document.getElementById('chip-mode-badge');
+    if (chipMode) {
+      if (student.isGuest) {
+        chipMode.textContent = '🟡 Mode: Guest';
+        chipMode.className = 'badge-guest';
+      } else {
+        chipMode.textContent = '🟢 Mode: Account';
+        chipMode.className = 'badge-guest mode-account';
+      }
+    }
+
+    const btnAuth = document.getElementById('btn-open-auth');
+    if (btnAuth) {
+      btnAuth.textContent = student.isGuest ? '🔑 Log In / Create Account' : '👤 Switch / Account';
+    }
+
+    // Dashboard Hero Card
+    const dashAvatar = document.getElementById('dash-avatar');
+    if (dashAvatar) dashAvatar.innerHTML = this.renderAvatarContent(student.avatarUrl || (student.isGuest ? '👤' : '🧑‍🎓'));
+
+    const dashName = document.getElementById('dash-student-name');
+    if (dashName) dashName.textContent = student.fullName || (student.isGuest ? 'Guest User' : 'Student');
+
+    const dashEmail = document.getElementById('dash-student-email');
+    if (dashEmail) dashEmail.textContent = student.email ? student.email : (student.isGuest ? 'Guest Mode (Local Storage)' : '');
+
+    const dashDesc = document.getElementById('dash-student-desc');
+    if (dashDesc) {
+      dashDesc.textContent = student.description || (student.isGuest ? 'No bio yet. Click "Customize Profile & Habits" to personalize your profile and behavioral hax.' : 'Ambitious student building unstoppable daily self-management habits.');
+    }
+
+    // Dashboard Abilities Pills & Cards
+    const typeClassMap = {
+      'Discipline': 'badge-discipline',
+      'Focus': 'badge-focus',
+      'Grit': 'badge-grit',
+      'Self-Learning': 'badge-self-learning',
+      'Custom': 'badge-custom'
+    };
+
+    const abilitiesContainer = document.getElementById('dash-abilities-container');
+    if (abilitiesContainer) {
+      abilitiesContainer.innerHTML = '';
+      const abilities = student.abilitiesHax || [];
+      const activeList = abilities.filter(a => a.active);
+      if (activeList.length === 0) {
+        abilitiesContainer.innerHTML = '<span style="font-size: 12px; color: #94a3b8; font-style: italic;">✨ No abilities added yet. Click "Customize Profile & Habits" to type what you can do!</span>';
+      } else {
+        activeList.forEach(a => {
+          const chip = document.createElement('div');
+          chip.className = 'hax-card-chip';
+          const badgeClass = typeClassMap[a.type] || 'badge-custom';
+          chip.innerHTML = `
+            <div class="hax-card-chip-header">
+              <span>${a.icon || '⚡'} ${a.name}</span>
+              <span class="ability-type-badge ${badgeClass}" style="font-size: 9px; padding: 1px 6px;">${a.type || 'Ability'}</span>
+            </div>
+            <div class="hax-card-chip-desc">${a.description || 'Custom behavioral superpower strategy'}</div>
+          `;
+          abilitiesContainer.appendChild(chip);
+        });
+      }
+    }
+
+    // Dashboard Habit Routine Banner
+    const cueEl = document.getElementById('dash-habit-cue');
+    if (cueEl) cueEl.textContent = habit.habitCue || 'Set your habit cue (e.g., After arriving home...)';
+
+    const routineEl = document.getElementById('dash-habit-routine');
+    if (routineEl) routineEl.textContent = habit.microRoutine2min || 'Set your 2-minute micro routine (e.g., Sit at desk and learn 5 words)';
+
+    const rewardEl = document.getElementById('dash-habit-reward');
+    if (rewardEl) rewardEl.textContent = habit.immediateReward || 'Set your immediate reward (e.g., Stick a sticker & play a song)';
+  }
+
+  initProfileAndAuth() {
+    this.initModalTabs();
+
+    // Profile Modal Open & Close
+    const btnOpenProfile = document.getElementById('btn-open-profile');
+    if (btnOpenProfile) {
+      btnOpenProfile.addEventListener('click', () => this.openProfileModal());
+    }
+
+    const btnDashEdit = document.getElementById('btn-dash-edit-profile');
+    if (btnDashEdit) {
+      btnDashEdit.addEventListener('click', () => this.openProfileModal());
+    }
+
+    const btnCloseProfile = document.getElementById('btn-close-profile-modal');
+    if (btnCloseProfile) {
+      btnCloseProfile.addEventListener('click', () => this.closeProfileModal());
+    }
+
+    const btnCancelProfile = document.getElementById('btn-cancel-profile');
+    if (btnCancelProfile) {
+      btnCancelProfile.addEventListener('click', () => this.closeProfileModal());
+    }
+
+    // Save Profile
+    const btnSaveProfile = document.getElementById('btn-save-profile');
+    if (btnSaveProfile) {
+      btnSaveProfile.addEventListener('click', () => this.saveProfileAndHabit());
+    }
+
+    // Custom Avatar Input
+    const inputCustomAvatar = document.getElementById('input-custom-avatar');
+    if (inputCustomAvatar) {
+      inputCustomAvatar.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        this.selectedAvatar = val || (this.state.student && this.state.student.avatarUrl) || '🧑‍🎓';
+        this.renderAvatarPreview();
+        const container = document.getElementById('avatar-presets-container');
+        if (container) {
+          container.querySelectorAll('.avatar-preset-item').forEach(el => el.classList.remove('selected'));
+        }
+      });
+    }
+
+    // Preset Ability Title Selector
+    const selectPresetHax = document.getElementById('select-preset-hax-title');
+    if (selectPresetHax) {
+      selectPresetHax.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const presets = window.SMS_MODELS.ABILITY_PRESET_TITLES || [];
+        const found = presets.find(p => p.title === val);
+        if (found) {
+          const nameInput = document.getElementById('input-new-hax-name');
+          const iconInput = document.getElementById('input-new-hax-icon');
+          const typeSelect = document.getElementById('select-new-hax-type');
+          const descInput = document.getElementById('input-new-hax-desc');
+          if (nameInput) nameInput.value = found.title;
+          if (iconInput) iconInput.value = found.icon;
+          if (typeSelect) typeSelect.value = found.type;
+          if (descInput) descInput.value = found.whatICanDo;
+        }
+      });
+    }
+
+    // Add Custom Ability
+    const btnAddHax = document.getElementById('btn-add-new-hax');
+    if (btnAddHax) {
+      btnAddHax.addEventListener('click', () => this.addCustomHax());
+    }
+
+    // Auth Modal Open & Close
+    const btnOpenAuth = document.getElementById('btn-open-auth');
+    if (btnOpenAuth) {
+      btnOpenAuth.addEventListener('click', () => this.openAuthModal());
+    }
+
+    const btnCloseAuth = document.getElementById('btn-close-auth-modal');
+    if (btnCloseAuth) {
+      btnCloseAuth.addEventListener('click', () => this.closeAuthModal());
+    }
+
+    const btnContinueGuest = document.getElementById('btn-continue-guest');
+    if (btnContinueGuest) {
+      btnContinueGuest.addEventListener('click', () => {
+        this.closeAuthModal();
+        this.showToast('👤 Continuing in Guest Mode. All features unlocked!');
+      });
+    }
+
+    // Login & Register Form Actions
+    const btnLogin = document.getElementById('btn-do-login');
+    if (btnLogin) {
+      btnLogin.addEventListener('click', () => this.handleLogin());
+    }
+
+    const btnRegister = document.getElementById('btn-do-register');
+    if (btnRegister) {
+      btnRegister.addEventListener('click', () => this.handleRegister());
+    }
+
+    const btnQuickAlan = document.getElementById('btn-quick-switch-alan');
+    if (btnQuickAlan) {
+      btnQuickAlan.addEventListener('click', () => {
+        const emailInput = document.getElementById('input-login-email');
+        const passInput = document.getElementById('input-login-password');
+        if (emailInput) emailInput.value = 'khoian.alan@vinschool.edu.vn';
+        if (passInput) passInput.value = '123456';
+        this.handleLogin();
+      });
+    }
+
+    // Global ESC key listener to close modals
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closeProfileModal();
+        this.closeAuthModal();
+      }
+    });
+  }
+
+  initModalTabs() {
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+      const tabBtns = modal.querySelectorAll('.modal-tab-btn');
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetId = btn.dataset.target;
+          tabBtns.forEach(b => b.classList.remove('active'));
+          modal.querySelectorAll('.modal-tab-pane').forEach(p => p.classList.remove('active'));
+
+          btn.classList.add('active');
+          const targetPane = document.getElementById(targetId);
+          if (targetPane) targetPane.classList.add('active');
+        });
+      });
+
+      // Close modal on clicking outside content
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.remove('open');
+        }
+      });
+    });
+  }
+
+  openProfileModal() {
+    const student = this.state.student || {};
+    const habit = this.state.habit || {};
+    this.selectedAvatar = student.avatarUrl || (student.isGuest ? '👤' : '🧑‍🎓');
+
+    // Form fields
+    const nameInput = document.getElementById('input-profile-name');
+    if (nameInput) nameInput.value = student.fullName || (student.isGuest ? 'Guest User' : '');
+
+    const emailInput = document.getElementById('input-profile-email');
+    if (emailInput) {
+      emailInput.value = student.email || (student.isGuest ? 'guest@local (Sign in to attach an account)' : '');
+    }
+
+    const descInput = document.getElementById('textarea-profile-desc');
+    if (descInput) descInput.value = student.description || '';
+
+    const customAvatarInput = document.getElementById('input-custom-avatar');
+    if (customAvatarInput) {
+      customAvatarInput.value = (student.avatarUrl && (student.avatarUrl.startsWith('http') || student.avatarUrl.length > 4)) ? student.avatarUrl : '';
+    }
+
+    // Habit fields
+    const cueInput = document.getElementById('input-profile-cue');
+    if (cueInput) cueInput.value = habit.habitCue || '';
+
+    const routineInput = document.getElementById('input-profile-routine');
+    if (routineInput) routineInput.value = habit.microRoutine2min || '';
+
+    const rewardInput = document.getElementById('input-profile-reward');
+    if (rewardInput) rewardInput.value = habit.immediateReward || '';
+
+    this.renderAvatarPreview();
+    this.renderAvatarPresets('avatar-presets-container');
+    this.renderAbilityTitlePresets();
+    this.renderAbilitiesList();
+
+    const modal = document.getElementById('modal-profile');
+    if (modal) modal.classList.add('open');
+  }
+
+  closeProfileModal() {
+    const modal = document.getElementById('modal-profile');
+    if (modal) modal.classList.remove('open');
+  }
+
+  renderAvatarPreview() {
+    const preview = document.getElementById('profile-preview-avatar');
+    if (preview) {
+      preview.innerHTML = this.renderAvatarContent(this.selectedAvatar);
+    }
+  }
+
+  renderAvatarPresets(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    const presets = window.SMS_MODELS.PRESET_AVATARS || ['🧑‍🎓', '👨‍💻', '👩‍🔬', '🥷', '🦁', '🚀', '⚡', '🧙‍♂️'];
+
+    presets.forEach(p => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'avatar-preset-item' + (this.selectedAvatar === p ? ' selected' : '');
+      item.textContent = p;
+      item.addEventListener('click', () => {
+        this.selectedAvatar = p;
+        const customInput = document.getElementById('input-custom-avatar');
+        if (customInput) customInput.value = '';
+        this.renderAvatarPreview();
+        container.querySelectorAll('.avatar-preset-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+      });
+      container.appendChild(item);
+    });
+  }
+
+  renderAbilityTitlePresets() {
+    const presets = window.SMS_MODELS.ABILITY_PRESET_TITLES || [];
+    const select = document.getElementById('select-preset-hax-title');
+    if (select) {
+      select.innerHTML = '<option value="">-- Select from popular ability titles --</option>';
+      presets.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.title;
+        opt.textContent = `${p.icon} ${p.title} (${p.type})`;
+        select.appendChild(opt);
+      });
+    }
+
+    const chipsContainer = document.getElementById('quick-title-chips');
+    if (chipsContainer) {
+      chipsContainer.innerHTML = '';
+      presets.forEach(p => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'quick-title-chip';
+        chip.textContent = `${p.icon} ${p.title}`;
+        chip.addEventListener('click', () => {
+          const nameInput = document.getElementById('input-new-hax-name');
+          const iconInput = document.getElementById('input-new-hax-icon');
+          const typeSelect = document.getElementById('select-new-hax-type');
+          const descInput = document.getElementById('input-new-hax-desc');
+
+          if (nameInput) nameInput.value = p.title;
+          if (iconInput) iconInput.value = p.icon;
+          if (typeSelect) typeSelect.value = p.type;
+          if (descInput) descInput.value = p.whatICanDo;
+          if (select) select.value = p.title;
+
+          chipsContainer.querySelectorAll('.quick-title-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+        });
+        chipsContainer.appendChild(chip);
+      });
+    }
+  }
+
+  renderAbilitiesList() {
+    const container = document.getElementById('abilities-list-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const abilities = this.state.student.abilitiesHax || [];
+    const countBadge = document.getElementById('abilities-count-badge');
+    const activeCount = abilities.filter(a => a.active).length;
+    if (countBadge) {
+      countBadge.textContent = `${abilities.length} abilities (${activeCount} active)`;
+    }
+
+    if (abilities.length === 0) {
+      container.innerHTML = `
+        <div style="padding: 24px; text-align: center; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; color: #64748b;">
+          <div style="font-size: 28px; margin-bottom: 8px;">✨</div>
+          <p style="font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 4px;">No abilities added yet</p>
+          <p style="font-size: 12px; margin: 0;">Choose a preset title above or enter a custom one, then type what you can do and click <strong>"Add to My Abilities"</strong>.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const typeClassMap = {
+      'Discipline': 'badge-discipline',
+      'Focus': 'badge-focus',
+      'Grit': 'badge-grit',
+      'Self-Learning': 'badge-self-learning',
+      'Custom': 'badge-custom'
+    };
+
+    abilities.forEach((ability, idx) => {
+      const card = document.createElement('div');
+      card.className = 'ability-card' + (ability.active ? ' active' : '');
+      const badgeClass = typeClassMap[ability.type] || 'badge-custom';
+
+      card.innerHTML = `
+        <div class="ability-card-left" style="flex: 1;">
+          <div class="ability-card-icon">${ability.icon || '⚡'}</div>
+          <div class="ability-card-body" style="flex: 1;">
+            <div class="ability-card-title" style="margin-bottom: 4px;">
+              <span style="font-weight: 700;">${ability.name}</span>
+              <span class="ability-type-badge ${badgeClass}">${ability.type}</span>
+            </div>
+            <div style="margin-top: 4px;">
+              <label style="display: block; font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 2px;">What I can do (Edit directly):</label>
+              <textarea class="ability-card-edit-desc" rows="2" data-idx="${idx}" placeholder="Type what you can do with this ability...">${ability.description || ''}</textarea>
+            </div>
+          </div>
+        </div>
+        <div class="ability-card-right" style="margin-left: 12px; align-items: flex-start; padding-top: 4px;">
+          <label class="toggle-switch" title="Toggle active in dashboard">
+            <input type="checkbox" class="ability-checkbox" data-idx="${idx}" ${ability.active ? 'checked' : ''} />
+            <span class="toggle-slider"></span>
+          </label>
+          <button type="button" class="btn-delete-row btn-delete-hax" data-idx="${idx}" title="Delete ability">✕</button>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+    // Bind inline edit textareas
+    container.querySelectorAll('.ability-card-edit-desc').forEach(textarea => {
+      textarea.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.dataset.idx);
+        if (this.state.student.abilitiesHax[idx]) {
+          this.state.student.abilitiesHax[idx].description = e.target.value;
+          window.smsStorage.saveState(this.state);
+          this.renderStudentProfile();
+        }
+      });
+    });
+
+    // Bind checkboxes
+    container.querySelectorAll('.ability-checkbox').forEach(cb => {
+      cb.addEventListener('change', (e) => {
+        const idx = parseInt(e.target.dataset.idx);
+        this.state.student.abilitiesHax[idx].active = e.target.checked;
+        const card = e.target.closest('.ability-card');
+        if (card) card.classList.toggle('active', e.target.checked);
+        window.smsStorage.saveState(this.state);
+        this.renderStudentProfile();
+        if (countBadge) {
+          const act = this.state.student.abilitiesHax.filter(a => a.active).length;
+          countBadge.textContent = `${this.state.student.abilitiesHax.length} abilities (${act} active)`;
+        }
+      });
+    });
+
+    // Bind delete
+    container.querySelectorAll('.btn-delete-hax').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = parseInt(e.target.dataset.idx);
+        const name = this.state.student.abilitiesHax[idx] ? this.state.student.abilitiesHax[idx].name : 'Ability';
+        this.state.student.abilitiesHax.splice(idx, 1);
+        window.smsStorage.saveState(this.state);
+        this.renderAbilitiesList();
+        this.renderStudentProfile();
+        this.showToast(`🗑️ Removed "${name}".`);
+      });
+    });
+  }
+
+  addCustomHax() {
+    const nameInput = document.getElementById('input-new-hax-name');
+    const iconInput = document.getElementById('input-new-hax-icon');
+    const typeSelect = document.getElementById('select-new-hax-type');
+    const descInput = document.getElementById('input-new-hax-desc');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    if (!name) {
+      alert('Please select a preset title or type a custom ability title.');
+      return;
+    }
+
+    const icon = (iconInput && iconInput.value.trim()) || '⚡';
+    const type = (typeSelect && typeSelect.value) || 'Custom';
+    const desc = (descInput && descInput.value.trim()) || 'Custom behavioral strategy.';
+
+    const newHax = {
+      id: 'hax-' + Date.now(),
+      name,
+      icon,
+      type,
+      description: desc,
+      active: true,
+      isCustom: true
+    };
+
+    if (!this.state.student.abilitiesHax) {
+      this.state.student.abilitiesHax = [];
+    }
+
+    this.state.student.abilitiesHax.push(newHax);
+    window.smsStorage.saveState(this.state);
+
+    if (nameInput) nameInput.value = '';
+    if (descInput) descInput.value = '';
+    const select = document.getElementById('select-preset-hax-title');
+    if (select) select.value = '';
+    const chipsContainer = document.getElementById('quick-title-chips');
+    if (chipsContainer) {
+      chipsContainer.querySelectorAll('.quick-title-chip').forEach(c => c.classList.remove('active'));
+    }
+
+    this.renderAbilitiesList();
+    this.renderStudentProfile();
+    this.showToast(`✨ Added "${name}" to your abilities!`);
+  }
+
+  async saveProfileAndHabit() {
+    const nameInput = document.getElementById('input-profile-name');
+    const descInput = document.getElementById('textarea-profile-desc');
+    const customAvatarInput = document.getElementById('input-custom-avatar');
+
+    if (nameInput && nameInput.value.trim()) {
+      this.state.student.fullName = nameInput.value.trim();
+    }
+
+    if (customAvatarInput && customAvatarInput.value.trim()) {
+      this.selectedAvatar = customAvatarInput.value.trim();
+    }
+    this.state.student.avatarUrl = this.selectedAvatar || '🧑‍🎓';
+
+    if (descInput) {
+      this.state.student.description = descInput.value.trim();
+    }
+
+    // Habit
+    const cueInput = document.getElementById('input-profile-cue');
+    const routineInput = document.getElementById('input-profile-routine');
+    const rewardInput = document.getElementById('input-profile-reward');
+
+    if (cueInput) this.state.habit.habitCue = cueInput.value.trim();
+    if (routineInput) this.state.habit.microRoutine2min = routineInput.value.trim();
+    if (rewardInput) this.state.habit.immediateReward = rewardInput.value.trim();
+
+    window.smsStorage.saveState(this.state);
+
+    // Sync to SQLite backend if not guest
+    if (window.smsApiClient && !this.state.student.isGuest) {
+      try {
+        await window.smsApiClient.updateProfile({
+          full_name: this.state.student.fullName,
+          avatar_url: this.state.student.avatarUrl,
+          description: this.state.student.description,
+          abilities_hax: this.state.student.abilitiesHax
+        });
+        await window.smsApiClient.updateHabit({
+          habit_cue: this.state.habit.habitCue,
+          micro_routine_2min: this.state.habit.microRoutine2min,
+          immediate_reward: this.state.habit.immediateReward
+        });
+      } catch (err) {
+        console.warn('Backend sync warning:', err);
+      }
+    }
+
+    this.renderStudentProfile();
+    this.closeProfileModal();
+    this.showToast('✅ Profile, habit & abilities saved successfully!');
+  }
+
+  /* ================== AUTHENTICATION (LOGIN / REGISTER) ================== */
+  openAuthModal() {
+    const loginMsg = document.getElementById('auth-login-msg');
+    if (loginMsg) loginMsg.textContent = '';
+
+    const regMsg = document.getElementById('auth-reg-msg');
+    if (regMsg) regMsg.textContent = '';
+
+    this.renderRegisterAvatarPresets();
+
+    const modal = document.getElementById('modal-auth');
+    if (modal) modal.classList.add('open');
+  }
+
+  closeAuthModal() {
+    const modal = document.getElementById('modal-auth');
+    if (modal) modal.classList.remove('open');
+  }
+
+  renderRegisterAvatarPresets() {
+    const container = document.getElementById('reg-avatar-presets');
+    if (!container) return;
+    container.innerHTML = '';
+    const presets = window.SMS_MODELS.PRESET_AVATARS || ['🧑‍🎓', '👨‍💻', '👩‍🔬', '🥷', '🦁', '🚀', '⚡', '🧙‍♂️'];
+    const regAvatarInput = document.getElementById('input-reg-avatar');
+
+    presets.forEach(p => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'avatar-preset-item' + (regAvatarInput && regAvatarInput.value === p ? ' selected' : '');
+      item.textContent = p;
+      item.addEventListener('click', () => {
+        if (regAvatarInput) regAvatarInput.value = p;
+        container.querySelectorAll('.avatar-preset-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+      });
+      container.appendChild(item);
+    });
+  }
+
+  async handleLogin() {
+    const emailInput = document.getElementById('input-login-email');
+    const passInput = document.getElementById('input-login-password');
+    const msgEl = document.getElementById('auth-login-msg');
+
+    const email = emailInput ? emailInput.value.trim() : '';
+    const password = passInput ? passInput.value.trim() : '';
+
+    if (!email) {
+      if (msgEl) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = '❌ Please enter an email address.';
+      }
+      return;
+    }
+
+    if (msgEl) {
+      msgEl.style.color = '#0284c7';
+      msgEl.textContent = '⏳ Logging in...';
+    }
+
+    try {
+      if (window.smsApiClient) {
+        const res = await window.smsApiClient.login({ email, password });
+        if (res && res.data) {
+          const user = res.data;
+          this.state.student.id = user.id;
+          this.state.student.email = user.email;
+          this.state.student.fullName = user.fullName;
+          this.state.student.avatarUrl = user.avatarUrl || '🧑‍🎓';
+          this.state.student.description = user.description || '';
+          this.state.student.isGuest = false;
+          this.state.student.abilitiesHax = user.abilitiesHax || JSON.parse(JSON.stringify(window.SMS_MODELS.DEFAULT_ABILITIES_HAX));
+          this.state.student.currentStreakDays = user.streakDays || 0;
+          this.state.student.streakStatus = user.streakStatus || 'ACTIVE';
+
+          window.smsStorage.saveState(this.state);
+          await this.syncWithBackend();
+          this.render();
+          this.closeAuthModal();
+          this.showToast(`👋 Welcome back, ${user.fullName}!`);
+          return;
+        }
+      }
+      // Offline fallback
+      this.state.student.email = email;
+      this.state.student.fullName = email.split('@')[0];
+      this.state.student.isGuest = false;
+      window.smsStorage.saveState(this.state);
+      this.render();
+      this.closeAuthModal();
+      this.showToast(`👋 Signed in as ${this.state.student.fullName} (Local)`);
+    } catch (err) {
+      if (msgEl) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = `❌ ${err.message || 'Login failed'}`;
+      }
+    }
+  }
+
+  async handleRegister() {
+    const nameInput = document.getElementById('input-reg-name');
+    const emailInput = document.getElementById('input-reg-email');
+    const passInput = document.getElementById('input-reg-password');
+    const avatarInput = document.getElementById('input-reg-avatar');
+    const descInput = document.getElementById('input-reg-desc');
+    const msgEl = document.getElementById('auth-reg-msg');
+
+    const fullName = nameInput ? nameInput.value.trim() : '';
+    const email = emailInput ? emailInput.value.trim() : '';
+    const password = passInput ? passInput.value.trim() : '';
+    const avatarUrl = (avatarInput && avatarInput.value.trim()) || '🧑‍🎓';
+    const description = descInput ? descInput.value.trim() : '';
+
+    if (!fullName || !email || !password) {
+      if (msgEl) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = '❌ Full name, email, and password are required.';
+      }
+      return;
+    }
+
+    if (msgEl) {
+      msgEl.style.color = '#0284c7';
+      msgEl.textContent = '⏳ Creating account...';
+    }
+
+    try {
+      if (window.smsApiClient) {
+        const res = await window.smsApiClient.register({
+          fullName,
+          email,
+          password,
+          avatarUrl,
+          description,
+          abilities: JSON.parse(JSON.stringify(window.SMS_MODELS.DEFAULT_ABILITIES_HAX))
+        });
+        if (res && res.data) {
+          const user = res.data;
+          this.state.student.id = user.id;
+          this.state.student.email = user.email;
+          this.state.student.fullName = user.full_name || user.fullName;
+          this.state.student.avatarUrl = user.avatar_url || user.avatarUrl || avatarUrl;
+          this.state.student.description = user.description || description;
+          this.state.student.isGuest = false;
+          this.state.student.abilitiesHax = JSON.parse(user.abilities_hax_json || '[]') || JSON.parse(JSON.stringify(window.SMS_MODELS.DEFAULT_ABILITIES_HAX));
+          this.state.student.currentStreakDays = 0;
+          this.state.student.streakStatus = 'ACTIVE';
+
+          window.smsStorage.saveState(this.state);
+          await this.syncWithBackend();
+          this.render();
+          this.closeAuthModal();
+          this.showToast(`🎉 Account created! Welcome, ${this.state.student.fullName}.`);
+          return;
+        }
+      }
+      // Offline fallback
+      this.state.student.id = 'student-' + Date.now();
+      this.state.student.fullName = fullName;
+      this.state.student.email = email;
+      this.state.student.avatarUrl = avatarUrl;
+      this.state.student.description = description;
+      this.state.student.isGuest = false;
+      window.smsStorage.saveState(this.state);
+      this.render();
+      this.closeAuthModal();
+      this.showToast(`🎉 Account created! Welcome, ${fullName}.`);
+    } catch (err) {
+      if (msgEl) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = `❌ ${err.message || 'Registration failed'}`;
+      }
     }
   }
 

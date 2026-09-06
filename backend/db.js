@@ -55,13 +55,23 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS students (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL DEFAULT '123456',
       full_name TEXT NOT NULL,
+      avatar_url TEXT DEFAULT '🧑‍🎓',
+      description TEXT DEFAULT 'Ambitious student building unstoppable daily self-management habits.',
+      abilities_hax_json TEXT DEFAULT '[]',
       current_streak_days INTEGER NOT NULL DEFAULT 0,
       streak_status TEXT NOT NULL DEFAULT 'ACTIVE',
       last_active_date TEXT,
       created_at TEXT NOT NULL
     );
   `);
+
+  // Safe migrations for existing databases
+  try { await run(`ALTER TABLE students ADD COLUMN password TEXT DEFAULT '123456';`); } catch (e) {}
+  try { await run(`ALTER TABLE students ADD COLUMN avatar_url TEXT DEFAULT '🧑‍🎓';`); } catch (e) {}
+  try { await run(`ALTER TABLE students ADD COLUMN description TEXT DEFAULT 'Ambitious student building unstoppable daily self-management habits.';`); } catch (e) {}
+  try { await run(`ALTER TABLE students ADD COLUMN abilities_hax_json TEXT DEFAULT '[]';`); } catch (e) {}
 
   // 2. 90-Day Goals
   await run(`
@@ -202,10 +212,29 @@ async function seedDay1() {
   const goalId = 'goal-alan-001';
   const loopId = 'daily-loop-today';
 
+  const defaultAbilities = [
+    { id: 'hax-1', name: '90-Second Activation Ritual', icon: '⚡', type: 'Discipline', description: 'Cuts starting resistance to under 90s before excuses kick in.', active: true },
+    { id: 'hax-2', name: 'Phone Disruption Shield', icon: '🛡️', type: 'Focus', description: 'IF phone temptation occurs, THEN place in another room.', active: true },
+    { id: 'hax-3', name: '24h Anti-Guilt Reset', icon: '🔄', type: 'Grit', description: 'Preserves active streak when exhausted by locking tomorrow to 2 minutes.', active: true },
+    { id: 'hax-4', name: 'Metacognitive Mirror', icon: '🪞', type: 'Self-Learning', description: '3 evening prompts converting daily errors into tomorrow tweaks.', active: true }
+  ];
+
   await run(`
-    INSERT INTO students (id, email, full_name, current_streak_days, streak_status, last_active_date, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `, [studentId, 'khoian.alan@vinschool.edu.vn', 'Trần Quang Khôi An', 0, 'ACTIVE', today, new Date().toISOString()]);
+    INSERT INTO students (id, email, password, full_name, avatar_url, description, abilities_hax_json, current_streak_days, streak_status, last_active_date, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [
+    studentId,
+    'khoian.alan@vinschool.edu.vn',
+    '123456',
+    'Trần Quang Khôi An',
+    '🧑‍🎓',
+    'Vinschool Gifted & Talented student building unstoppable study habits.',
+    JSON.stringify(defaultAbilities),
+    0,
+    'ACTIVE',
+    today,
+    new Date().toISOString()
+  ]);
 
   await run(`
     INSERT INTO goals_90day (id, student_id, subject, baseline_score, target_score, goal_statement, deep_motivation, current_day_number, current_phase, start_date, status)
@@ -330,11 +359,162 @@ async function seedDay1() {
   console.log('Seeded initial Day 1 student profile into SQLite.');
 }
 
+async function registerUser({ email, password, fullName, avatarUrl, description, abilities }) {
+  const existing = await get(`SELECT id FROM students WHERE email = ?`, [email]);
+  if (existing) {
+    throw new Error('Email already registered');
+  }
+
+  const studentId = 'student-' + Date.now();
+  const goalId = 'goal-' + Date.now();
+  const habitId = 'habit-' + Date.now();
+  const planId = 'plan-' + Date.now();
+  const loopId = 'loop-' + Date.now();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const defaultAbilities = abilities || [
+    { id: 'hax-1', name: '90-Second Activation Ritual', icon: '⚡', type: 'Discipline', description: 'Cuts starting resistance to under 90s before excuses kick in.', active: true },
+    { id: 'hax-2', name: 'Phone Disruption Shield', icon: '🛡️', type: 'Focus', description: 'IF phone temptation occurs, THEN place in another room.', active: true },
+    { id: 'hax-3', name: '24h Anti-Guilt Reset', icon: '🔄', type: 'Grit', description: 'Preserves active streak when exhausted by locking tomorrow to 2 minutes.', active: true },
+    { id: 'hax-4', name: 'Metacognitive Mirror', icon: '🪞', type: 'Self-Learning', description: '3 evening prompts converting daily errors into tomorrow tweaks.', active: true }
+  ];
+
+  await run(`
+    INSERT INTO students (id, email, password, full_name, avatar_url, description, abilities_hax_json, current_streak_days, streak_status, last_active_date, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [
+    studentId,
+    email,
+    password || '123456',
+    fullName || 'New Student',
+    avatarUrl || '🧑‍🎓',
+    description || 'Ambitious student building unstoppable study habits.',
+    JSON.stringify(defaultAbilities),
+    0,
+    'ACTIVE',
+    today,
+    new Date().toISOString()
+  ]);
+
+  await run(`
+    INSERT INTO goals_90day (id, student_id, subject, baseline_score, target_score, goal_statement, deep_motivation, current_day_number, current_phase, start_date, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [
+    goalId,
+    studentId,
+    'English',
+    '9',
+    '9.5',
+    "Students learn repeatly every day and upgraded their English's score form 9 to 9.5 and talk more confidently.",
+    "Because I want to talk more confidently and showed excellent academic results for future exam that i about to get.",
+    1,
+    1,
+    today,
+    'IN_PROGRESS'
+  ]);
+
+  await run(`
+    INSERT INTO habit_profiles (id, student_id, habit_cue, micro_routine_2min, immediate_reward, daily_free_time_mins, preferred_focus_slot, focus_duration_mins, is_active)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [
+    habitId,
+    studentId,
+    'After school...',
+    'Sit at my desk and learn 5 new English words.',
+    'Stick a sticker and listen to my favorite song.',
+    30,
+    '19:45',
+    20,
+    1
+  ]);
+
+  const defaultSchedule = [
+    { id: 'sb-1', day: 'Tue', time: '19:45', durationMins: 20 },
+    { id: 'sb-2', day: 'Thu', time: '19:45', durationMins: 20 },
+    { id: 'sb-3', day: 'Sat', time: '09:30', durationMins: 25 }
+  ];
+
+  await run(`
+    INSERT INTO weekly_plans (id, student_id, week_number, objective_statement, key_result_1, key_result_2, key_result_3, deliberate_practice_focus, schedule_blocks_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [
+    planId,
+    studentId,
+    1,
+    'Study regularly every day and improve your English score from 9.0 to 9.5.',
+    'Complete 3 English listening tests. (Hoàn thành 3 bài kiểm tra nghe).',
+    'Master 3 advanced vocabulary words daily. (Làm chủ 3 từ vựng nâng cao mỗi ngày).',
+    'Practice speaking for 15 minutes every morning. (Luyện nói 15 phút mỗi sáng).',
+    'Pronunciation: Record my voice and compare it with native speakers to fix ending sounds.',
+    JSON.stringify(defaultSchedule)
+  ]);
+
+  await run(`
+    INSERT INTO daily_loops (id, goal_id, loop_date, top1_task, scheduled_time, scheduled_duration_mins, if_trigger, then_action, min_habit_checked, loop_status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [
+    loopId,
+    goalId,
+    today,
+    'Finish English homework and review 5 vocabulary words.',
+    '19:45',
+    20,
+    'want to use phone',
+    'Put phone out of reach',
+    0,
+    'NOT_STARTED'
+  ]);
+
+  await run(`
+    INSERT INTO focus_sessions (id, daily_loop_id, planned_seconds, actual_seconds, summary_1sentence, next_step, session_status)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `, ['focus-' + Date.now(), loopId, 1200, 0, '', '', 'NOT_STARTED']);
+
+  await run(`
+    INSERT INTO daily_reflections (id, daily_loop_id, intended_outcome, what_happened, tweak_tomorrow, logged_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `, ['refl-' + Date.now(), loopId, '', '', '', '']);
+
+  await run(`
+    INSERT INTO grit_safety_events (id, daily_loop_id, reason, tomorrow_micro_action, switch_open, activated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `, ['grit-' + Date.now(), loopId, 'exhausted', 'Only do homework for minimum for 2 mins', 0, '']);
+
+  await run(`
+    INSERT INTO skill_scoreboards (id, daily_loop_id, priority_score, discipline_score, habit_score, grit_score, self_learning_score, total_daily_score)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `, ['sb-' + Date.now(), loopId, 0, 0, 0, 0, 0, 0]);
+
+  return await get(`SELECT id, email, full_name, avatar_url, description, abilities_hax_json, current_streak_days, streak_status FROM students WHERE id = ?`, [studentId]);
+}
+
+async function loginUser({ email, password }) {
+  const student = await get(`SELECT * FROM students WHERE email = ?`, [email]);
+  if (!student) {
+    throw new Error('User with this email does not exist');
+  }
+  if (student.password && student.password !== password) {
+    throw new Error('Incorrect password');
+  }
+  return {
+    id: student.id,
+    email: student.email,
+    fullName: student.full_name,
+    avatarUrl: student.avatar_url || '🧑‍🎓',
+    description: student.description || '',
+    abilitiesHax: JSON.parse(student.abilities_hax_json || '[]'),
+    streakDays: student.current_streak_days,
+    streakStatus: student.streak_status
+  };
+}
+
 module.exports = {
   db,
   run,
   get,
   all,
   initDb,
-  seedDay1
+  seedDay1,
+  registerUser,
+  loginUser
 };

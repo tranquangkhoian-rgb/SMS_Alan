@@ -103,7 +103,7 @@ async function runGitSync() {
       fs,
       dir: repoDir,
       author,
-      message: 'feat: Complete SMS - Self Management System (Docs, Frontend UI, Node.js + Express Backend, SQLite Database, Automated Tests)'
+      message: 'feat: add blank guest mode, full access without login, interactive abilities edit space with title picker and live capability editing'
     });
     console.log('✅ Commit created successfully! Commit SHA:', sha);
   } catch (err) {

@@ -10,10 +10,22 @@ export type SessionStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETE
 export type ViewTab = 'dashboard' | 'goals' | 'daily-loop' | 'weekly';
 export type DailyStep = 'plan' | 'timer' | 'end-day';
 
+export interface AbilityHax {
+  id: string;
+  name: string;
+  icon: string;
+  type: 'Discipline' | 'Focus' | 'Grit' | 'Self-Learning' | 'Custom';
+  description: string;
+  active: boolean;
+}
+
 export interface StudentProfile {
   id: string;
   fullName: string;
   email: string;
+  avatarUrl: string;
+  description: string;
+  abilitiesHax: AbilityHax[];
   currentStreakDays: number;
   streakStatus: StreakStatus;
   lastActiveDate: string;

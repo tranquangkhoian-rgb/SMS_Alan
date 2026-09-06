@@ -7,7 +7,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { db, run, get, all, initDb, seedDay1 } = require('./db');
+const { db, run, get, all, initDb, seedDay1, registerUser, loginUser } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -44,6 +44,132 @@ app.get('/api/health', (req, res) => {
 });
 
 /* ========================================================
+   Auth & Account Management APIs
+   ======================================================== */
+// Register / Create Account
+app.post('/api/v1/auth/register', async (req, res) => {
+  try {
+    const { email, password, full_name, avatar_url, description, abilities } = req.body;
+    if (!email || !email.includes('@')) {
+      return errorResponse(res, 'Valid email is required', 400);
+    }
+    const student = await registerUser({
+      email,
+      password: password || '123456',
+      fullName: full_name || 'New Student',
+      avatarUrl: avatar_url || '🧑‍🎓',
+      description: description || 'Building daily self-management habits.',
+      abilities
+    });
+    successResponse(res, {
+      id: student.id,
+      email: student.email,
+      fullName: student.full_name,
+      avatarUrl: student.avatar_url,
+      description: student.description,
+      abilitiesHax: JSON.parse(student.abilities_hax_json || '[]')
+    }, 'Account successfully created!', 201);
+  } catch (err) {
+    errorResponse(res, err.message, 400);
+  }
+});
+
+// Login
+app.post('/api/v1/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email) {
+      return errorResponse(res, 'Email is required', 400);
+    }
+    const student = await loginUser({ email, password });
+    successResponse(res, student, 'Login successful!');
+  } catch (err) {
+    errorResponse(res, err.message, 401);
+  }
+});
+
+// Current User Profile & Habit
+app.get('/api/v1/auth/me', async (req, res) => {
+  try {
+    const student = await get(`SELECT * FROM students LIMIT 1`);
+    if (!student) return errorResponse(res, 'No student found', 404);
+
+    const habit = await get(`SELECT * FROM habit_profiles WHERE student_id = ? LIMIT 1`, [student.id]);
+
+    successResponse(res, {
+      id: student.id,
+      email: student.email,
+      fullName: student.full_name,
+      avatarUrl: student.avatar_url || '🧑‍🎓',
+      description: student.description || '',
+      abilitiesHax: JSON.parse(student.abilities_hax_json || '[]'),
+      streakDays: student.current_streak_days,
+      streakStatus: student.streak_status,
+      habit: habit ? {
+        habitCue: habit.habit_cue,
+        microRoutine2min: habit.micro_routine_2min,
+        immediateReward: habit.immediate_reward
+      } : null
+    });
+  } catch (err) {
+    errorResponse(res, err.message, 500);
+  }
+});
+
+// Update Profile (Name, Avatar, Description, Abilities/Hax)
+app.put('/api/v1/user/profile', async (req, res) => {
+  try {
+    const { full_name, avatar_url, description, abilities_hax } = req.body;
+    const student = await get(`SELECT * FROM students LIMIT 1`);
+    if (!student) return errorResponse(res, 'No student found', 404);
+
+    const updatedName = full_name !== undefined ? full_name : student.full_name;
+    const updatedAvatar = avatar_url !== undefined ? avatar_url : (student.avatar_url || '🧑‍🎓');
+    const updatedDesc = description !== undefined ? description : (student.description || '');
+    const updatedAbilities = abilities_hax !== undefined ? JSON.stringify(abilities_hax) : student.abilities_hax_json;
+
+    await run(`
+      UPDATE students
+      SET full_name = ?, avatar_url = ?, description = ?, abilities_hax_json = ?
+      WHERE id = ?
+    `, [updatedName, updatedAvatar, updatedDesc, updatedAbilities, student.id]);
+
+    successResponse(res, {
+      id: student.id,
+      fullName: updatedName,
+      avatarUrl: updatedAvatar,
+      description: updatedDesc,
+      abilitiesHax: JSON.parse(updatedAbilities || '[]')
+    }, 'Profile and abilities updated successfully!');
+  } catch (err) {
+    errorResponse(res, err.message, 500);
+  }
+});
+
+// Update Habit
+app.put('/api/v1/user/habit', async (req, res) => {
+  try {
+    const { habit_cue, micro_routine_2min, immediate_reward } = req.body;
+    const student = await get(`SELECT * FROM students LIMIT 1`);
+    if (!student) return errorResponse(res, 'No student found', 404);
+
+    await run(`
+      UPDATE habit_profiles
+      SET habit_cue = ?, micro_routine_2min = ?, immediate_reward = ?
+      WHERE student_id = ?
+    `, [habit_cue, micro_routine_2min, immediate_reward, student.id]);
+
+    successResponse(res, {
+      habitCue: habit_cue,
+      microRoutine2min: micro_routine_2min,
+      immediateReward: immediate_reward
+    }, 'Habit configuration updated!');
+  } catch (err) {
+    errorResponse(res, err.message, 500);
+  }
+});
+
+/* ========================================================
    2. Dashboard API
    ======================================================== */
 app.get('/api/v1/dashboard/summary', async (req, res) => {
@@ -59,6 +185,10 @@ app.get('/api/v1/dashboard/summary', async (req, res) => {
       student: {
         id: student.id,
         fullName: student.full_name,
+        email: student.email,
+        avatarUrl: student.avatar_url || '🧑‍🎓',
+        description: student.description || '',
+        abilitiesHax: JSON.parse(student.abilities_hax_json || '[]'),
         streakDays: student.current_streak_days,
         streakStatus: student.streak_status
       },

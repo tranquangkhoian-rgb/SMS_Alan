@@ -4,7 +4,7 @@
  * Manages offline-first persistence, Day 1 default state, and resets.
  */
 
-const STORAGE_KEY = 'sms_self_management_system_state_v2';
+const STORAGE_KEY = 'sms_self_management_system_state_v3';
 
 class StorageService {
   loadState() {
@@ -16,8 +16,8 @@ class StorageService {
     } catch (e) {
       console.warn('Could not read from localStorage:', e);
     }
-    // Default to Day 1 starting state
-    return JSON.parse(JSON.stringify(window.SMS_MODELS.INITIAL_DAY1_STATE));
+    // Default to clean blank Guest state on first start
+    return JSON.parse(JSON.stringify(window.SMS_MODELS.INITIAL_GUEST_STATE));
   }
 
   saveState(state) {
@@ -28,14 +28,26 @@ class StorageService {
     }
   }
 
+  resetToGuest() {
+    const guest = JSON.parse(JSON.stringify(window.SMS_MODELS.INITIAL_GUEST_STATE));
+    this.saveState(guest);
+    return guest;
+  }
+
   resetToDay1() {
-    const day1 = JSON.parse(JSON.stringify(window.SMS_MODELS.INITIAL_DAY1_STATE));
-    this.saveState(day1);
-    return day1;
+    return this.resetToGuest();
+  }
+
+  loadAlanDemo() {
+    const alan = JSON.parse(JSON.stringify(window.SMS_MODELS.ALAN_DEMO_STATE));
+    this.saveState(alan);
+    return alan;
   }
 
   resetToFresh() {
-    const fresh = JSON.parse(JSON.stringify(window.SMS_MODELS.INITIAL_EMPTY_STATE));
+    const fresh = JSON.parse(JSON.stringify(window.SMS_MODELS.INITIAL_GUEST_STATE));
+    fresh.isOnboarded = false;
+    fresh.activeTab = 'goals';
     this.saveState(fresh);
     return fresh;
   }
