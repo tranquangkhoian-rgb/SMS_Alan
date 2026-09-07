@@ -504,7 +504,7 @@ async function loginUser({ identifier, email, username, password }) {
   }
 
   const student = await get(
-    `SELECT * FROM students WHERE LOWER(email) = LOWER(?) OR LOWER(full_name) = LOWER(?) OR id = ? LIMIT 1`,
+    `SELECT * FROM students WHERE LOWER(email) = LOWER(?) OR LOWER(full_name) = LOWER(?) OR id = ? ORDER BY created_at DESC LIMIT 1`,
     [query, query, query]
   );
   if (!student) {

@@ -13,6 +13,15 @@ class AppController {
     this.remainingSeconds = this.timerDuration;
     this.timerState = 'STOPPED'; // 'STOPPED', 'RUNNING', 'PAUSED'
     this.selectedAvatar = (this.state.student && this.state.student.avatarUrl) || '🧑‍🎓';
+
+    // Synchronize apiClient user tracking with loaded state
+    if (window.smsApiClient) {
+      if (this.state.student && !this.state.student.isGuest && this.state.student.id) {
+        window.smsApiClient.setUserId(this.state.student.id);
+      } else {
+        window.smsApiClient.setUserId(null);
+      }
+    }
   }
 
   init() {
@@ -43,12 +52,19 @@ class AppController {
             return;
           }
 
-          // Hydrate user profile from SQLite
-          const me = await window.smsApiClient.getMe();
-          if (me) {
+          if (this.state.student && this.state.student.id) {
+            window.smsApiClient.setUserId(this.state.student.id);
+          }
+
+          // Hydrate user profile from SQLite ONLY if matching current active student ID
+          const me = await window.smsApiClient.getMe(this.state.student ? this.state.student.id : null);
+          if (me && me.id === this.state.student.id) {
             if (me.fullName) this.state.student.fullName = me.fullName;
             if (me.email) this.state.student.email = me.email;
-            if (me.avatarUrl) this.state.student.avatarUrl = me.avatarUrl;
+            if (me.avatarUrl) {
+              this.state.student.avatarUrl = me.avatarUrl;
+              this.selectedAvatar = me.avatarUrl;
+            }
             if (me.description) this.state.student.description = me.description;
             if (me.abilitiesHax && me.abilitiesHax.length > 0) this.state.student.abilitiesHax = me.abilitiesHax;
             if (me.streakDays !== undefined) this.state.student.currentStreakDays = me.streakDays;
@@ -64,7 +80,7 @@ class AppController {
           if (summary && summary.roadmap) {
             this.state.goal.currentDayNumber = summary.roadmap.currentDay;
             this.state.goal.currentPhase = summary.roadmap.phaseNumber;
-            if (summary.student) {
+            if (summary.student && summary.student.id === this.state.student.id) {
               this.state.student.currentStreakDays = summary.student.streakDays;
             }
           }
@@ -947,6 +963,11 @@ class AppController {
       btnAuth.textContent = student.isGuest ? '🔑 Log In / Create Account' : '👤 Switch / Account';
     }
 
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+      btnLogout.style.display = student.isGuest ? 'none' : 'inline-flex';
+    }
+
     // Dashboard Hero Card
     const dashAvatar = document.getElementById('dash-avatar');
     if (dashAvatar) dashAvatar.innerHTML = this.renderAvatarContent(student.avatarUrl || (student.isGuest ? '👤' : '🧑‍🎓'));
@@ -1126,6 +1147,16 @@ class AppController {
         if (passInput) passInput.value = '123456';
         this.handleLogin();
       });
+    }
+
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+      btnLogout.addEventListener('click', () => this.handleLogout());
+    }
+
+    const btnModalLogout = document.getElementById('btn-modal-logout');
+    if (btnModalLogout) {
+      btnModalLogout.addEventListener('click', () => this.handleLogout());
     }
 
     // Global ESC key listener to close modals
@@ -1495,6 +1526,20 @@ class AppController {
     const regMsg = document.getElementById('auth-reg-msg');
     if (regMsg) regMsg.textContent = '';
 
+    const currentUserBanner = document.getElementById('auth-current-user-banner');
+    const currentUserName = document.getElementById('auth-current-user-name');
+    if (currentUserBanner && currentUserName) {
+      if (this.state.student && !this.state.student.isGuest) {
+        currentUserBanner.style.display = 'flex';
+        const emailStr = (this.state.student.email && !this.state.student.email.endsWith('@sms.local'))
+          ? ` • ${this.state.student.email}`
+          : '';
+        currentUserName.textContent = `${this.state.student.fullName || 'Student'}${emailStr}`;
+      } else {
+        currentUserBanner.style.display = 'none';
+      }
+    }
+
     this.renderRegisterAvatarPresets();
 
     const modal = document.getElementById('modal-auth');
@@ -1504,6 +1549,17 @@ class AppController {
   closeAuthModal() {
     const modal = document.getElementById('modal-auth');
     if (modal) modal.classList.remove('open');
+  }
+
+  handleLogout() {
+    this.state = window.smsStorage.resetToGuest();
+    if (window.smsApiClient) {
+      window.smsApiClient.setUserId(null);
+    }
+    this.selectedAvatar = '👤';
+    this.render();
+    this.closeAuthModal();
+    this.showToast('🚪 Logged out successfully. You are now in Guest Mode.');
   }
 
   renderRegisterAvatarPresets() {
@@ -1579,6 +1635,7 @@ class AppController {
       this.state.student.email = serverUser.email || '';
       this.state.student.fullName = serverUser.fullName || serverUser.full_name || identifier;
       this.state.student.avatarUrl = serverUser.avatarUrl || serverUser.avatar_url || '🧑‍🎓';
+      this.selectedAvatar = this.state.student.avatarUrl;
       this.state.student.description = serverUser.description || '';
       this.state.student.isGuest = false;
       this.state.student.abilitiesHax = serverUser.abilitiesHax || 
@@ -1587,6 +1644,9 @@ class AppController {
       this.state.student.currentStreakDays = serverUser.streakDays || 0;
       this.state.student.streakStatus = serverUser.streakStatus || 'ACTIVE';
 
+      if (window.smsApiClient) {
+        window.smsApiClient.setUserId(serverUser.id);
+      }
       window.smsStorage.saveState(this.state);
       await this.syncWithBackend();
       this.render();
@@ -1594,9 +1654,13 @@ class AppController {
       this.showToast(`👋 Welcome back, ${this.state.student.fullName}!`);
     } else {
       // Local account login
+      this.state.student.id = 'student-local-' + Date.now();
       this.state.student.email = identifier.includes('@') ? identifier : '';
       this.state.student.fullName = identifier.includes('@') ? identifier.split('@')[0] : identifier;
       this.state.student.isGuest = false;
+      if (window.smsApiClient) {
+        window.smsApiClient.setUserId(this.state.student.id);
+      }
       window.smsStorage.saveState(this.state);
       this.render();
       this.closeAuthModal();
@@ -1681,6 +1745,7 @@ class AppController {
       this.state.student.email = serverUser.email || email;
       this.state.student.fullName = serverUser.fullName || serverUser.full_name || fullName;
       this.state.student.avatarUrl = serverUser.avatarUrl || serverUser.avatar_url || avatarUrl;
+      this.selectedAvatar = this.state.student.avatarUrl;
       this.state.student.description = serverUser.description || description;
       this.state.student.isGuest = false;
       this.state.student.abilitiesHax = serverUser.abilitiesHax || 
@@ -1689,6 +1754,9 @@ class AppController {
       this.state.student.currentStreakDays = 0;
       this.state.student.streakStatus = 'ACTIVE';
 
+      if (window.smsApiClient) {
+        window.smsApiClient.setUserId(serverUser.id);
+      }
       window.smsStorage.saveState(this.state);
       await this.syncWithBackend();
       this.render();
@@ -1700,8 +1768,12 @@ class AppController {
       this.state.student.fullName = fullName;
       this.state.student.email = email;
       this.state.student.avatarUrl = avatarUrl;
+      this.selectedAvatar = avatarUrl;
       this.state.student.description = description;
       this.state.student.isGuest = false;
+      if (window.smsApiClient) {
+        window.smsApiClient.setUserId(this.state.student.id);
+      }
       window.smsStorage.saveState(this.state);
       this.render();
       this.closeAuthModal();

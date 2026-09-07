@@ -36,6 +36,22 @@ const errorResponse = (res, message, status = 400) => {
   });
 };
 
+// Helper to resolve currently active student by header (x-user-id), query param, or fallback
+const getCurrentStudent = async (req) => {
+  const userId = req.headers['x-user-id'] || (req.query && req.query.user_id);
+  if (userId === 'guest') {
+    return null;
+  }
+  if (userId) {
+    const student = await get(`SELECT * FROM students WHERE id = ?`, [userId]);
+    if (student) return student;
+  }
+  // Return most recent non-guest student if available, else first student
+  const latestNonGuest = await get(`SELECT * FROM students WHERE id != 'guest' ORDER BY created_at DESC LIMIT 1`);
+  if (latestNonGuest) return latestNonGuest;
+  return await get(`SELECT * FROM students LIMIT 1`);
+};
+
 /* ========================================================
    1. Health & Status
    ======================================================== */
@@ -93,7 +109,7 @@ app.post('/api/v1/auth/login', async (req, res) => {
 // Current User Profile & Habit
 app.get('/api/v1/auth/me', async (req, res) => {
   try {
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
     if (!student) return errorResponse(res, 'No student found', 404);
 
     const habit = await get(`SELECT * FROM habit_profiles WHERE student_id = ? LIMIT 1`, [student.id]);
@@ -122,7 +138,7 @@ app.get('/api/v1/auth/me', async (req, res) => {
 app.put('/api/v1/user/profile', async (req, res) => {
   try {
     const { full_name, avatar_url, description, abilities_hax } = req.body;
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
     if (!student) return errorResponse(res, 'No student found', 404);
 
     const updatedName = full_name !== undefined ? full_name : student.full_name;
@@ -152,7 +168,7 @@ app.put('/api/v1/user/profile', async (req, res) => {
 app.put('/api/v1/user/habit', async (req, res) => {
   try {
     const { habit_cue, micro_routine_2min, immediate_reward } = req.body;
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
     if (!student) return errorResponse(res, 'No student found', 404);
 
     await run(`
@@ -176,8 +192,10 @@ app.put('/api/v1/user/habit', async (req, res) => {
    ======================================================== */
 app.get('/api/v1/dashboard/summary', async (req, res) => {
   try {
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
+    if (!student) return errorResponse(res, 'No student found or guest mode active', 404);
     const goal = await get(`SELECT * FROM goals_90day WHERE student_id = ? LIMIT 1`, [student.id]);
+    if (!goal) return errorResponse(res, 'No goal found for student', 404);
     const dailyLoop = await get(`SELECT * FROM daily_loops WHERE goal_id = ? ORDER BY loop_date DESC LIMIT 1`, [goal.id]);
     const scoreboard = dailyLoop ? await get(`SELECT * FROM skill_scoreboards WHERE daily_loop_id = ?`, [dailyLoop.id]) : null;
 
@@ -228,7 +246,7 @@ app.get('/api/v1/dashboard/summary', async (req, res) => {
    ======================================================== */
 app.get('/api/v1/daily-loop/today', async (req, res) => {
   try {
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
     const goal = await get(`SELECT * FROM goals_90day WHERE student_id = ? LIMIT 1`, [student.id]);
     const loop = await get(`SELECT * FROM daily_loops WHERE goal_id = ? ORDER BY loop_date DESC LIMIT 1`, [goal.id]);
 
@@ -258,7 +276,7 @@ app.get('/api/v1/daily-loop/today', async (req, res) => {
 app.post('/api/v1/daily-loop/plan', async (req, res) => {
   try {
     const { top1_task, scheduled_time, duration_mins, if_trigger, then_action, min_habit_completed } = req.body;
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
     const goal = await get(`SELECT * FROM goals_90day WHERE student_id = ? LIMIT 1`, [student.id]);
     const loop = await get(`SELECT * FROM daily_loops WHERE goal_id = ? ORDER BY loop_date DESC LIMIT 1`, [goal.id]);
 
@@ -307,7 +325,7 @@ app.post('/api/v1/daily-loop/plan', async (req, res) => {
 // Step 2: Start Focus Timer
 app.post('/api/v1/focus/start', async (req, res) => {
   try {
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
     const goal = await get(`SELECT * FROM goals_90day WHERE student_id = ? LIMIT 1`, [student.id]);
     const loop = await get(`SELECT * FROM daily_loops WHERE goal_id = ? ORDER BY loop_date DESC LIMIT 1`, [goal.id]);
 
@@ -328,7 +346,7 @@ app.post('/api/v1/focus/start', async (req, res) => {
 app.post('/api/v1/focus/finish', async (req, res) => {
   try {
     const { actual_seconds, summary_1sentence, next_step } = req.body;
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
     const goal = await get(`SELECT * FROM goals_90day WHERE student_id = ? LIMIT 1`, [student.id]);
     const loop = await get(`SELECT * FROM daily_loops WHERE goal_id = ? ORDER BY loop_date DESC LIMIT 1`, [goal.id]);
 
@@ -363,7 +381,7 @@ app.post('/api/v1/focus/finish', async (req, res) => {
 app.post('/api/v1/daily-loop/end-day', async (req, res) => {
   try {
     const { intended_outcome, what_happened, tweak_tomorrow } = req.body;
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
     const goal = await get(`SELECT * FROM goals_90day WHERE student_id = ? LIMIT 1`, [student.id]);
     const loop = await get(`SELECT * FROM daily_loops WHERE goal_id = ? ORDER BY loop_date DESC LIMIT 1`, [goal.id]);
 
@@ -412,7 +430,7 @@ app.post('/api/v1/daily-loop/end-day', async (req, res) => {
 app.post('/api/v1/daily-loop/safety-net/activate', async (req, res) => {
   try {
     const { switch_open, reason, tomorrow_micro_action } = req.body;
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
     const goal = await get(`SELECT * FROM goals_90day WHERE student_id = ? LIMIT 1`, [student.id]);
     const loop = await get(`SELECT * FROM daily_loops WHERE goal_id = ? ORDER BY loop_date DESC LIMIT 1`, [goal.id]);
 
@@ -456,7 +474,7 @@ app.post('/api/v1/daily-loop/safety-net/activate', async (req, res) => {
    ======================================================== */
 app.get('/api/v1/weekly-review/current', async (req, res) => {
   try {
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
     const plan = await get(`SELECT * FROM weekly_plans WHERE student_id = ? LIMIT 1`, [student.id]);
 
     if (!plan) return errorResponse(res, 'No weekly plan found', 404);
@@ -478,7 +496,7 @@ app.get('/api/v1/weekly-review/current', async (req, res) => {
 app.post('/api/v1/weekly-review/finalize', async (req, res) => {
   try {
     const { key_results, deliberate_practice_focus, schedule_blocks } = req.body;
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
 
     await run(`
       UPDATE weekly_plans
@@ -505,7 +523,7 @@ app.post('/api/v1/weekly-review/finalize', async (req, res) => {
 app.post('/api/v1/onboarding/goal', async (req, res) => {
   try {
     const { subject, baseline_score, target_score, goal_statement, deep_motivation } = req.body;
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
 
     await run(`
       UPDATE goals_90day
@@ -522,7 +540,7 @@ app.post('/api/v1/onboarding/goal', async (req, res) => {
 app.post('/api/v1/onboarding/time-allocation', async (req, res) => {
   try {
     const { daily_free_time_mins, preferred_focus_slot, focus_duration_mins, schedule_blocks } = req.body;
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
 
     await run(`
       UPDATE habit_profiles
@@ -547,7 +565,7 @@ app.post('/api/v1/onboarding/time-allocation', async (req, res) => {
 app.post('/api/v1/onboarding/habit', async (req, res) => {
   try {
     const { habit_cue, micro_routine_2min, immediate_reward } = req.body;
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
 
     await run(`
       UPDATE habit_profiles
@@ -567,7 +585,7 @@ app.post('/api/v1/onboarding/habit', async (req, res) => {
 app.post('/api/v1/beta/skip-day', async (req, res) => {
   try {
     const count = parseInt(req.body.count) || 1;
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
     const goal = await get(`SELECT * FROM goals_90day WHERE student_id = ? LIMIT 1`, [student.id]);
 
     let newDay = goal.current_day_number + count;
@@ -616,7 +634,7 @@ app.post('/api/v1/beta/skip-day', async (req, res) => {
 app.post('/api/v1/beta/jump-day', async (req, res) => {
   try {
     const targetDay = Math.max(1, Math.min(90, parseInt(req.body.targetDay) || 1));
-    const student = await get(`SELECT * FROM students LIMIT 1`);
+    const student = await getCurrentStudent(req);
     const goal = await get(`SELECT * FROM goals_90day WHERE student_id = ? LIMIT 1`, [student.id]);
 
     let newPhase = 1;

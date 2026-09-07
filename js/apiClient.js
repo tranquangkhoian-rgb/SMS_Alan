@@ -10,13 +10,39 @@ class ApiClient {
       ? window.location.origin
       : 'http://localhost:3000';
     this.isOnline = false;
+    this.userId = null;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        this.userId = localStorage.getItem('sms_current_user_id');
+      }
+    } catch (e) {}
+  }
+
+  setUserId(userId) {
+    this.userId = userId;
+    try {
+      if (userId && userId !== 'guest') {
+        localStorage.setItem('sms_current_user_id', userId);
+      } else {
+        localStorage.removeItem('sms_current_user_id');
+      }
+    } catch (e) {}
+  }
+
+  getHeaders(customHeaders = {}) {
+    const headers = { 'Content-Type': 'application/json', ...customHeaders };
+    const uid = this.userId || (typeof localStorage !== 'undefined' ? localStorage.getItem('sms_current_user_id') : null);
+    if (uid && uid !== 'guest') {
+      headers['x-user-id'] = uid;
+    }
+    return headers;
   }
 
   async checkHealth() {
     try {
       const res = await fetch(`${this.baseUrl}/api/health`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+        headers: this.getHeaders()
       });
       if (res.ok) {
         const json = await res.json();
@@ -31,7 +57,9 @@ class ApiClient {
 
   async getDashboardSummary() {
     try {
-      const res = await fetch(`${this.baseUrl}/api/v1/dashboard/summary`);
+      const res = await fetch(`${this.baseUrl}/api/v1/dashboard/summary`, {
+        headers: this.getHeaders()
+      });
       if (res.ok) {
         const json = await res.json();
         return json.data;
@@ -44,7 +72,9 @@ class ApiClient {
 
   async getDailyLoopToday() {
     try {
-      const res = await fetch(`${this.baseUrl}/api/v1/daily-loop/today`);
+      const res = await fetch(`${this.baseUrl}/api/v1/daily-loop/today`, {
+        headers: this.getHeaders()
+      });
       if (res.ok) {
         const json = await res.json();
         return json.data;
@@ -59,7 +89,7 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/v1/daily-loop/plan`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify(payload)
       });
       if (res.ok) return await res.json();
@@ -73,7 +103,7 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/v1/focus/finish`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify(payload)
       });
       if (res.ok) return await res.json();
@@ -87,7 +117,7 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/v1/daily-loop/end-day`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify(payload)
       });
       if (res.ok) return await res.json();
@@ -101,7 +131,7 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/v1/daily-loop/safety-net/activate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify(payload)
       });
       if (res.ok) return await res.json();
@@ -115,7 +145,7 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/v1/weekly-review/finalize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify(payload)
       });
       if (res.ok) return await res.json();
@@ -129,7 +159,7 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/v1/beta/skip-day`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify({ count })
       });
       if (res.ok) return await res.json();
@@ -143,7 +173,7 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/v1/beta/jump-day`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify({ targetDay })
       });
       if (res.ok) return await res.json();
@@ -157,7 +187,7 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/v1/beta/reset-day1`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: this.getHeaders()
       });
       if (res.ok) return await res.json();
     } catch (e) {
@@ -170,11 +200,14 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/v1/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Registration failed');
+      if (data && data.data && data.data.id) {
+        this.setUserId(data.data.id);
+      }
       return data;
     } catch (e) {
       console.warn('Register error:', e);
@@ -186,11 +219,14 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/v1/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Login failed');
+      if (data && data.data && data.data.id) {
+        this.setUserId(data.data.id);
+      }
       return data;
     } catch (e) {
       console.warn('Login error:', e);
@@ -198,9 +234,15 @@ class ApiClient {
     }
   }
 
-  async getMe() {
+  async getMe(userId = null) {
     try {
-      const res = await fetch(`${this.baseUrl}/api/v1/auth/me`);
+      const headers = this.getHeaders();
+      if (userId && userId !== 'guest') {
+        headers['x-user-id'] = userId;
+      }
+      const res = await fetch(`${this.baseUrl}/api/v1/auth/me`, {
+        headers
+      });
       if (res.ok) {
         const json = await res.json();
         return json.data;
@@ -215,7 +257,7 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/v1/user/profile`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify(payload)
       });
       const data = await res.json();
@@ -231,7 +273,7 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/v1/user/habit`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify(payload)
       });
       const data = await res.json();

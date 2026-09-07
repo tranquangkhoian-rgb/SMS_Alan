@@ -103,7 +103,7 @@ async function runGitSync() {
       fs,
       dir: repoDir,
       author,
-      message: 'fix: make gmail/email optional for registration and login, fix fetch errors with resilient fallback'
+      message: 'fix: enable full multi-user session scoping with x-user-id header, protect created accounts from overwrite, and add logout'
     });
     console.log('✅ Commit created successfully! Commit SHA:', sha);
   } catch (err) {
